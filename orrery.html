@@ -53,7 +53,9 @@ body {
   margin: 0; font-family: var(--font-display); font-weight: 400;
   font-size: 22px; letter-spacing: 0.08em; color: var(--brass-hi); text-wrap: balance;
 }
-#date { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; }
+#when { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* fixed width for the widest usual date ("30 Sept 2026", monospaced) so the time never shifts */
+#date { display: inline-block; min-width: 12ch; }
 #time { margin-left: 1.2em; }
 #elapsed { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #scaleNote { font-size: 12px; color: var(--muted); line-height: 1.4; }
@@ -144,8 +146,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <div id="labels"></div>
 
 <section id="title" class="plate">
-  <h1>Brass Orrery</h1>
-  <div><span id="date">—</span><span id="time"></span></div>
+  <div id="when"><span id="date">—</span><span id="time"></span></div>
   <div id="elapsed">0.00 Earth years elapsed</div>
   <div id="scaleNote"></div>
 </section>

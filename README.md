@@ -30,3 +30,4 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 22 | 2026-10-27 19:02 | [orrery-v22-2026-10-27-1902-time-of-day.html](orrery-v22-2026-10-27-1902-time-of-day.html) | Time of day (UTC) shown next to the date |
 | 23 | 2026-10-27 19:03 | [orrery-v23-2026-10-27-1903-no-utc-tag.html](orrery-v23-2026-10-27-1903-no-utc-tag.html) | UTC tag removed from the time |
 | 24 | 2026-10-27 22:13 | [orrery-v24-2026-10-27-2213-almanac-toggle-all-sizes.html](orrery-v24-2026-10-27-2213-almanac-toggle-all-sizes.html) | Almanac show/hide button on every screen size |
+| 25 | 2026-10-28 20:30 | [orrery-v25-2026-10-28-2030-no-heading-steady-time.html](orrery-v25-2026-10-28-2030-no-heading-steady-time.html) | Title removed from the date panel; time stays in a fixed position |
