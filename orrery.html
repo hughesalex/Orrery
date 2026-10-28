@@ -32,6 +32,8 @@ body {
   will-change: transform;
 }
 .label.sun { color: var(--brass-hi); }
+.label.pick { pointer-events: auto; cursor: pointer; padding: 4px 6px; margin: -4px -6px; }
+.label.pick:hover { color: var(--brass-hi); opacity: 1; }
 .label.minor { font-size: 10px; color: var(--muted); }
 .label.const { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); opacity: 0.5; transform-origin: 0 0; }
 
@@ -151,7 +153,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears.<br></span>Pick a planet to follow it with the camera. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -708,6 +710,47 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
+
+  // ---------- tap or click a body to centre on it ----------
+  // Bodies are picked in screen space: a hit is inside the drawn disc, or within a small radius of a body too small to see.
+  const PICK_SLOP = 14;
+  const pickV = new THREE.Vector3();
+  function pickAt(cx, cy) {
+    const rect = canvas.getBoundingClientRect(), w = rect.width, h = rect.height;
+    const x = cx - rect.left, y = cy - rect.top;
+    const candidates = [{ body: null, mesh: sun }].concat(ALL.filter(p => p.mesh.visible).map(p => ({ body: p, mesh: p.mesh })));
+    let best = null;
+    candidates.forEach(c => {
+      pickV.copy(c.mesh.position).project(camera);
+      if (pickV.z < -1 || pickV.z > 1) return;
+      const sx = (pickV.x * 0.5 + 0.5) * w, sy = (-pickV.y * 0.5 + 0.5) * h;
+      const camDist = camera.position.distanceTo(c.mesh.position);
+      const rPx = c.mesh.scale.x / (camDist * Math.tan(camera.fov * DEG / 2)) * h / 2;
+      const d = Math.hypot(sx - x, sy - y);
+      if (d > Math.max(rPx, PICK_SLOP)) return;
+      // prefer a body whose disc contains the point and is nearest the camera, then the closest marker
+      const score = d <= rPx ? camDist : 1e9 + d;
+      if (!best || score < best.score) best = { score, body: c.body };
+    });
+    return best;
+  }
+  let press = null;
+  canvas.addEventListener("pointerdown", e => { press = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  canvas.addEventListener("pointerup", e => {
+    if (!press) return;
+    const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y), quick = performance.now() - press.t < 500;
+    press = null;
+    if (moved > 6 || !quick) return;             // a drag rotates the view instead
+    const hit = pickAt(e.clientX, e.clientY);
+    if (hit) follow(hit.body);
+  });
+  canvas.addEventListener("pointermove", e => {
+    if (e.buttons || e.pointerType !== "mouse") return;
+    canvas.style.cursor = pickAt(e.clientX, e.clientY) ? "pointer" : "";
+  });
+  sunLabel.classList.add("pick");
+  sunLabel.addEventListener("click", () => follow(null));
+  ALL.forEach(p => { p.label.classList.add("pick"); p.label.addEventListener("click", () => follow(p)); });
   resize();
 
   // ---------- frame loop ----------
