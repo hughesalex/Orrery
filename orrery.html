@@ -55,7 +55,6 @@ body {
 }
 #date { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; }
 #time { margin-left: 1.2em; }
-#time small { font-size: 11px; color: var(--muted); margin-left: 0.4em; }
 #elapsed { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #scaleNote { font-size: 12px; color: var(--muted); line-height: 1.4; }
 
@@ -1009,7 +1008,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const dateEl = document.getElementById("date"), elapsedEl = document.getElementById("elapsed");
   const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   const timeEl = document.getElementById("time"), timeText = document.createTextNode("");
-  timeEl.append(timeText, Object.assign(document.createElement("small"), { textContent: "UTC" }));
+  timeEl.append(timeText);
   let last = performance.now(), lastBlend = -1, lastFlat = -1, lastUi = 0;
   const prevTarget = new THREE.Vector3();
   const smooth = x => x * x * (3 - 2 * x);
