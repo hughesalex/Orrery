@@ -227,7 +227,33 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
                  wDot: 0.11140353, ODot: -0.05295377, R: 1737.4, color: "#cfcac0", moon: true };
   const EARTH = PLANETS[2];
   const ORBITERS = PLANETS.concat(DWARFS);          // bodies that orbit the Sun
-  const ALL = ORBITERS.concat([MOON]);
+  // Major moons of the outer planets and Pluto: semi-major axis [km], sidereal period [days], mean radius [km],
+  // inclination to the planet's equator [deg]. Distances, periods and sizes are real; starting positions are illustrative.
+  const SATS = [
+    ["Io", "Jupiter", 421700, 1.769, 1821.6, 0, 0, "#d9c56a"],
+    ["Europa", "Jupiter", 671034, 3.551, 1560.8, 0, 0, "#cdbfa5"],
+    ["Ganymede", "Jupiter", 1070412, 7.155, 2634.1, 0, 0, "#9c8f80"],
+    ["Callisto", "Jupiter", 1882709, 16.689, 2410.3, 0, 0, "#6e655a"],
+    ["Tethys", "Saturn", 294619, 1.888, 531.1, 0, 0, "#d8d6d2"],
+    ["Dione", "Saturn", 377396, 2.737, 561.4, 0, 0, "#c8c4be"],
+    ["Rhea", "Saturn", 527108, 4.518, 763.8, 0, 0, "#bfbab2"],
+    ["Titan", "Saturn", 1221870, 15.945, 2574.7, 0, 0.0288, "#d9a75a"],
+    ["Iapetus", "Saturn", 3560820, 79.322, 734.5, 15.5, 0.0283, "#8a7a68"],
+    ["Miranda", "Uranus", 129390, 1.413, 235.8, 4.2, 0, "#a8a49e"],
+    ["Ariel", "Uranus", 191020, 2.520, 578.9, 0, 0, "#b8b4ae"],
+    ["Umbriel", "Uranus", 266000, 4.144, 584.7, 0, 0, "#77726d"],
+    ["Titania", "Uranus", 435910, 8.706, 788.4, 0, 0, "#b3a89c"],
+    ["Oberon", "Uranus", 583520, 13.463, 761.4, 0, 0, "#9e9087"],
+    ["Proteus", "Neptune", 117647, 1.122, 210, 0, 0, "#6b6560"],
+    ["Triton", "Neptune", 354759, 5.877, 1353.4, 156.9, 0, "#d8c8c0"],
+    ["Nereid", "Neptune", 5513818, 360.13, 170, 32.6, 0.7507, "#8a8580"],
+    ["Charon", "Pluto", 19591, 6.387, 606, 0, 0, "#9a948e"],
+  ].map(([name, host, aKm, P, R, incl, e, color]) => {
+    const hash = [...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 3600, 17);
+    return { name, hostName: host, aKm, a: aKm / AU_KM, P, R, incl, e, color, sat: true, L: hash / 10, w: 0 };
+  });
+  const ALL = ORBITERS.concat([MOON], SATS);
+  SATS.forEach(m => { m.host = ORBITERS.find(b => b.name === m.hostName); });
   const SUN_R_KM = 695700;
   // Rotation: north pole RA and Dec [deg, J2000, IAU] and sidereal rotation period [hours, negative = retrograde]
   const ROTATION = {
@@ -254,7 +280,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   };
 
   // Sizes: compressed view exaggerates bodies so they can be seen; true view uses real radii
-  const compSize = p => p.moon ? 0.24 : 0.7 * Math.pow(p.R / 6371, 0.35);
+  const compSize = p => (p.moon || p.sat ? 0.385 : 0.7) * Math.pow(p.R / 6371, 0.35);
   const trueSize = R => R / AU_KM * U;
   const SUN_COMP = 3.0;
   const MOON_DIST_COMP = 1.7;                       // Earth–Moon distance in compressed view, scene units
@@ -445,14 +471,19 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     // marker dot that keeps a body visible when it is too small to see at true scale
     const mg = new THREE.BufferGeometry();
     mg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(3), 3));
-    p.marker = new THREE.Points(mg, new THREE.PointsMaterial({ color: p.color, size: p.dwarf || p.moon ? 5 : 7, sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false, opacity: 0 }));
+    p.marker = new THREE.Points(mg, new THREE.PointsMaterial({ color: p.color, size: p.dwarf || p.moon || p.sat ? 5 : 7, sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false, opacity: 0 }));
     scene.add(p.marker);
     // orbit path sampled in AU once, remapped to the scene when the scale or view changes
     p.orbitAU = new Float32Array((ORBIT_N + 1) * 3);
     const og = new THREE.BufferGeometry();
     og.setAttribute("position", new THREE.BufferAttribute(new Float32Array((ORBIT_N + 1) * 3), 3));
-    p.orbit = new THREE.Line(og, new THREE.LineBasicMaterial({ color: p.color, transparent: true, opacity: p.dwarf ? 0.22 : 0.35 }));
-    scene.add(p.orbit);
+    p.orbit = new THREE.Line(og, new THREE.LineBasicMaterial({ color: p.color, transparent: true, opacity: p.dwarf || p.sat ? 0.22 : 0.35 }));
+    if (p.sat) {
+      // moon orbit: an ellipse in the planet's equatorial frame, squashed by its own group in the top-down view
+      p.orbitGroup = new THREE.Group();
+      p.orbitGroup.add(p.orbit);
+      scene.add(p.orbitGroup);
+    } else scene.add(p.orbit);
   });
   function sampleOrbit(p, t) {
     for (let k = 0; k <= ORBIT_N; k++) {
@@ -462,6 +493,19 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     }
   }
   ORBITERS.forEach(p => sampleOrbit(p, 0));
+  SATS.forEach(m => {
+    m.frame = m.host.mesh.quaternion.clone()
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), m.incl * DEG))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (m.L * 7 % 360) * DEG));
+    const arr = m.orbit.geometry.attributes.position.array;
+    for (let k = 0; k <= ORBIT_N; k++) {
+      const E = (k / ORBIT_N) * Math.PI * 2;
+      arr[k * 3] = Math.cos(E) - m.e; arr[k * 3 + 1] = 0; arr[k * 3 + 2] = -Math.sqrt(1 - m.e * m.e) * Math.sin(E);
+    }
+    m.orbit.geometry.attributes.position.needsUpdate = true;
+    m.orbit.geometry.computeBoundingSphere();
+    m.orbit.quaternion.copy(m.frame);
+  });
 
   // Asteroid belt: sample asteroids on Kepler orbits between 2.1 and 3.3 AU, skipping the
   // Kirkwood gaps at Jupiter's 3:1, 5:2 and 7:3 resonances
@@ -513,7 +557,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   const sunLabel = makeLabel("Sun", "sun");
   const constLabels = CONST_NAMES.map(([name, ra, dec]) => ({ el: makeLabel(name, "const"), dir: skyDir(ra, dec, new THREE.Vector3()) }));
-  ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon ? "minor" : ""); });
+  ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon || p.sat ? "minor" : ""); });
 
   // ---------- almanac ----------
   const rowsEl = document.getElementById("rows");
@@ -526,11 +570,11 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   function addRow(p) {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "row" + (p.moon ? " sub" : "");
-    const dist = p.moon ? `${Math.round(p.a * AU_KM).toLocaleString("en-GB")} km` : `${p.a.toFixed(2)} AU`;
+    b.type = "button"; b.className = "row" + (p.moon || p.sat ? " sub" : "");
+    const dist = p.moon || p.sat ? `${Math.round(p.a * AU_KM).toLocaleString("en-GB")} km` : `${p.a.toFixed(2)} AU`;
     b.innerHTML = `<span class="dot" style="background:${p.color}"></span>
       <span class="name">${p.name}</span>
-      <span class="stats">${dist} · ${fmtPeriod(p.P)}</span>
+      <span class="stats">${dist} · ${fmtPeriod(p.P)}${p.incl > 90 ? " retro." : ""}</span>
       <span class="laps"><span class="bar"><i></i></span><span class="count">0.00</span></span>`;
     b.setAttribute("aria-label", `Follow ${p.name}`);
     b.addEventListener("click", () => follow(follow.target === p ? null : p));
@@ -538,9 +582,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     rowsEl.appendChild(b);
   }
   addHead("Planets");
-  PLANETS.forEach(p => { addRow(p); if (p === EARTH) addRow(MOON); });
+  const addMoons = host => SATS.filter(m => m.host === host).forEach(addRow);
+  PLANETS.forEach(p => { addRow(p); if (p === EARTH) addRow(MOON); addMoons(p); });
   const dwarfHead = addHead("Dwarf planets");
-  DWARFS.forEach(addRow);
+  DWARFS.forEach(p => { addRow(p); addMoons(p); });
 
   // ---------- state ----------
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -613,7 +658,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   bTop.addEventListener("click", () => setView(true));
 
   // minor bodies toggle
-  const MINOR = DWARFS.concat([MOON]);
+  const MINOR = DWARFS.concat([MOON], SATS);
   const minorBtn = document.getElementById("minor"), beltNote = document.getElementById("beltNote");
   function setMinor(on) {
     state.minor = on;
@@ -744,6 +789,23 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     sampleOrbit(MOON, state.t);        // the Moon's orbit plane precesses, so resample it each frame
     updateOrbitLine(MOON, k, flat, EARTH.mesh.position, moonScale);
 
+    // Other moons: distance from the planet is compressed (pushed clear of the enlarged planet) or true
+    SATS.forEach(m => {
+      const host = m.host;
+      const dist = sizeAt(compSize(host) * (1.6 + 0.55 * Math.sqrt(m.aKm / host.R)), m.a * U, eb);
+      const M = m.L * DEG + 2 * Math.PI * state.t / m.P;
+      let E = M;
+      if (m.e) for (let n = 0; n < 8; n++) E -= (E - m.e * Math.sin(E) - M) / (1 - m.e * Math.cos(E));
+      v3.set(Math.cos(E) - m.e, 0, -Math.sqrt(1 - m.e * m.e) * Math.sin(E)).applyQuaternion(m.frame).multiplyScalar(dist);
+      v3.y *= 1 - flat;
+      m.mesh.position.copy(host.mesh.position).add(v3);
+      placeBody(m, eb);
+      m.orbitGroup.position.copy(host.mesh.position);
+      m.orbitGroup.scale.set(1, 1 - flat, 1);
+      m.orbit.scale.setScalar(dist);
+      m.orbitGroup.visible = m.orbit.visible;
+    });
+
     if (state.minor) updateBelt(state.t, k, flat);
     lastBlend = state.blend; lastFlat = state.flat;
 
@@ -793,6 +855,11 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     // hide the Moon's label when it would sit on top of Earth's
     scr(EARTH.mesh.position, earthAt); scr(MOON.mesh.position, at);
     if (Math.hypot(at.x - earthAt.x, at.y - earthAt.y) < 40) MOON.label.style.display = "none";
+    SATS.forEach(m => {
+      if (m.label.style.display === "none") return;
+      scr(m.host.mesh.position, earthAt); scr(m.mesh.position, at);
+      if (Math.hypot(at.x - earthAt.x, at.y - earthAt.y) < 30) m.label.style.display = "none";
+    });
 
     // text readouts, ~8 times a second
     if (now - lastUi > 120) {
@@ -802,7 +869,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       const yrs = (state.t - state.tStart) / 365.256;
       elapsedEl.textContent = `${yrs >= 0 ? "" : "−"}${Math.abs(yrs).toFixed(2)} Earth years elapsed`;
       ALL.forEach(p => {
-        const laps = (state.t - state.tStart) / p.P;
+        const laps = (state.t - state.tStart) / Math.abs(p.P);
         const lon = ((((p.L + 360 / p.P * state.t) % 360) + 360) % 360) / 360;
         p.bar.style.width = (lon * 100).toFixed(1) + "%";
         p.count.textContent = (laps < 0 ? "−" : "") + Math.abs(laps).toFixed(2);
