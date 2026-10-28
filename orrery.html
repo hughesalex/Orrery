@@ -232,9 +232,12 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const ORBITERS = PLANETS.concat(DWARFS);          // bodies that orbit the Sun
   // Major moons of the outer planets and Pluto, as osculating elements in the J2000 ecliptic frame, centred on the planet:
   // a [km], sidereal period [days], mean radius [km], e, i, ascending node, argument of periapsis, mean anomaly [deg] at epoch [JD].
-  // Elements from the Celestia project's solar system catalogue (Titan converted from JPL mean elements, Charon from
+  // Elements from the Celestia project's solar system catalogue (Phobos and Deimos converted from Mars-equator elements,
+  // Titan converted from JPL mean elements, Charon from
   // Brozović & Jacobson 2024). Checked against the L1.2 theory for the Galilean moons: within about 1° from 2000 to 2040.
   const SATS = [
+    ["Phobos",   "Mars",    9378.938, 0.31891023,  11.08, 0.01468, 28.379985,  85.671324, 103.065503, 173.124729, 2460000.0, "#8f8276"],
+    ["Deimos",   "Mars",    23459.739, 1.2624407,   6.2,  0.000283, 27.410671, 78.281156,  55.763709, 331.164065, 2460000.0, "#a39585"],
     ["Io",       "Jupiter", 421769,  1.769137786, 1821.6, 0.0041,  2.212554, 336.850441,  66.167954, 335.152150, 2451545.0, "#d9c56a"],
     ["Europa",   "Jupiter", 671079,  3.551181,    1560.8, 0.0094,  1.790890, 332.628081, 254.647596, 345.411243, 2451545.0, "#cdbfa5"],
     ["Ganymede", "Jupiter", 1070428, 7.15455296,  2634.1, 0.0013,  2.214148, 343.170954, 319.809696, 277.048780, 2451545.0, "#9c8f80"],
@@ -286,7 +289,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   };
 
   // Sizes: compressed view exaggerates bodies so they can be seen; true view uses real radii
-  const compSize = p => (p.moon || p.sat ? 0.385 : 0.7) * Math.pow(p.R / 6371, 0.35);
+  const compSize = p => p.moon || p.sat ? Math.max(0.09, 0.385 * Math.pow(p.R / 6371, 0.35)) : 0.7 * Math.pow(p.R / 6371, 0.35);
   const trueSize = R => R / AU_KM * U;
   const SUN_COMP = 3.0;
   const MOON_DIST_COMP = 1.7;                       // Earth–Moon distance in compressed view, scene units
