@@ -182,6 +182,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     </div>
     <button class="btn" id="minor" type="button" aria-pressed="false" title="Show or hide all moons and the dwarf planets">Moons &amp; dwarfs</button>
     <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt">Asteroids</button>
+    <button class="btn" id="issBtn" type="button" aria-pressed="false" title="Show or hide the International Space Station">ISS</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
   </div>
@@ -612,6 +613,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     flat: 0, flatTarget: 0,    // 0 3D, 1 top-down
     minor: false,              // show moons and dwarf planets
     asteroids: false,          // show the asteroid belt
+    iss: false,                // show the International Space Station
   };
   const SPEED_MIN = 0.5 / 24, SPEED_MAX = 18262; // 0.5 hours/s to 50 years/s
   const speedInput = document.getElementById("speed");
@@ -694,6 +696,16 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   astBtn.addEventListener("click", () => setAsteroids(!state.asteroids));
 
+  // ISS toggle
+  const issBtn = document.getElementById("issBtn");
+  function setISS(on) {
+    state.iss = on;
+    issBtn.setAttribute("aria-pressed", String(on));
+    ISS.row.hidden = !on;
+    if (!on && follow.target === ISS) follow(null);
+  }
+  issBtn.addEventListener("click", () => setISS(!state.iss));
+
   // constellations toggle
   const constBtn = document.getElementById("constellations");
   function setConstellations(on) {
@@ -706,6 +718,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   setConstellations(false);   // off by default
   setMinor(false);            // off by default
   setAsteroids(false);        // off by default
+  setISS(false);              // off by default
 
   // almanac toggle (phone)
   const almanac = document.getElementById("almanac"), almBtn = document.getElementById("toggleAlmanac");
@@ -881,7 +894,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     // ISS: SGP4 position (km, true equator of date ~ J2000 equator), at its true height relative to Earth as drawn
     {
       const date = new Date(J2000_MS + state.t * DAY_MS);
-      const pv = ISS.rec && Math.abs(state.t - ISS.epochDays) < 365 ? satellite.propagate(ISS.rec, date) : null;
+      const pv = state.iss && ISS.rec && Math.abs(state.t - ISS.epochDays) < 365 ? satellite.propagate(ISS.rec, date) : null;
       const ok = !!(pv && pv.position);
       ISS.mesh.visible = ISS.marker.visible = ISS.orbit.visible = ok;
       if (ok) {
