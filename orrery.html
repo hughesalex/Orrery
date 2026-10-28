@@ -180,7 +180,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       <button class="btn" id="view3d" type="button" aria-pressed="true">3D</button>
       <button class="btn" id="viewTop" type="button" aria-pressed="false">Top-down</button>
     </div>
-    <button class="btn" id="minor" type="button" aria-pressed="false" title="Show or hide the Moon, dwarf planets and asteroid belt">Minor bodies</button>
+    <button class="btn" id="minor" type="button" aria-pressed="false" title="Show or hide all moons and the dwarf planets">Moons &amp; dwarfs</button>
+    <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt">Asteroids</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
   </div>
@@ -584,7 +585,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     speed: 30,                 // days per second
     blend: 0, blendTarget: 0,  // 0 compressed, 1 true
     flat: 0, flatTarget: 0,    // 0 3D, 1 top-down
-    minor: true,               // show Moon, dwarf planets and asteroid belt
+    minor: false,              // show moons and dwarf planets
+    asteroids: false,          // show the asteroid belt
   };
   const SPEED_MIN = 0.1, SPEED_MAX = 18262; // 2.4 hours/s to 50 years/s
   const speedInput = document.getElementById("speed");
@@ -652,11 +654,20 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     state.minor = on;
     minorBtn.setAttribute("aria-pressed", String(on));
     MINOR.forEach(p => { p.mesh.visible = p.marker.visible = p.orbit.visible = on; p.row.hidden = !on; });
-    belt.points.visible = on;
-    dwarfHead.hidden = !on; beltNote.hidden = !on;
+    dwarfHead.hidden = !on;
     if (!on && MINOR.includes(follow.target)) follow(null);
   }
   minorBtn.addEventListener("click", () => setMinor(!state.minor));
+
+  // asteroid belt toggle
+  const astBtn = document.getElementById("asteroids");
+  function setAsteroids(on) {
+    state.asteroids = on;
+    astBtn.setAttribute("aria-pressed", String(on));
+    belt.points.visible = on;
+    beltNote.hidden = !on;
+  }
+  astBtn.addEventListener("click", () => setAsteroids(!state.asteroids));
 
   // constellations toggle
   const constBtn = document.getElementById("constellations");
@@ -669,6 +680,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   constBtn.addEventListener("click", () => setConstellations(!state.constellations));
   setConstellations(false);   // off by default
   setMinor(false);            // off by default
+  setAsteroids(false);        // off by default
 
   // almanac toggle (phone)
   const almanac = document.getElementById("almanac"), almBtn = document.getElementById("toggleAlmanac");
@@ -830,7 +842,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       if (m.orbit.visible) updateOrbitLine(m, k, flat, host.mesh.position, scale);
     });
 
-    if (state.minor) updateBelt(state.t, k, flat);
+    if (state.asteroids) updateBelt(state.t, k, flat);
     lastBlend = state.blend; lastFlat = state.flat;
 
     // camera: follow a body by moving the orbit target with it
