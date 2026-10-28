@@ -153,7 +153,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -191,6 +191,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js"></script>
 <script>
 (() => {
   const DEG = Math.PI / 180;
@@ -261,7 +262,15 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     const L = w + M - 360 / P * (epoch - 2451545.0);           // mean longitude at J2000
     return { name, hostName: host, aKm, a: aKm / AU_KM, P, R, e, i, O, w, L, color, sat: true, retro: i > 90 && host !== "Uranus" && host !== "Pluto" };
   });
-  const ALL = ORBITERS.concat([MOON], SATS);
+  // International Space Station: NORAD two-line elements (via satcat.com), propagated with the SGP4 model (satellite.js).
+  // Accurate to a few km near the element epoch, degrading by roughly a few km a day; hidden more than a year from it.
+  const ISS_TLE = ["1 25544U 98067A   26299.20906838  .00006121  00000-0  11890-3 0  9996",
+                   "2 25544  51.6337  11.7282 0006920 310.9581  49.0809 15.49059765592065"];
+  const ISS = { name: "ISS", color: "#f4f1ea", R: 0.06, P: 1 / 15.49059765, L: 0, iss: true,
+                epochDays: (Date.UTC(2026, 0, 1) + (299.20906838 - 1) * DAY_MS - J2000_MS) / DAY_MS };
+  ISS.noBody = true;                 // drawn as a bright point, never as a sphere
+  ISS.rec = typeof satellite !== "undefined" ? satellite.twoline2satrec(ISS_TLE[0], ISS_TLE[1]) : null;
+  const ALL = ORBITERS.concat([MOON], SATS, [ISS]);
   SATS.forEach(m => { m.host = ORBITERS.find(b => b.name === m.hostName); });
   const SUN_R_KM = 695700;
   // Rotation: north pole RA and Dec [deg, J2000, IAU] and sidereal rotation period [hours, negative = retrograde]
@@ -289,7 +298,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   };
 
   // Sizes: compressed view exaggerates bodies so they can be seen; true view uses real radii
-  const compSize = p => p.moon || p.sat ? Math.max(0.09, 0.385 * Math.pow(p.R / 6371, 0.35)) : 0.7 * Math.pow(p.R / 6371, 0.35);
+  const compSize = p => p.iss ? 0.02 : p.moon || p.sat ? Math.max(0.09, 0.385 * Math.pow(p.R / 6371, 0.35)) : 0.7 * Math.pow(p.R / 6371, 0.35);
   const trueSize = R => R / AU_KM * U;
   const SUN_COMP = 3.0;
   const MOON_DIST_COMP = 1.7;                       // Earth–Moon distance in compressed view, scene units
@@ -466,6 +475,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     p.body = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.MeshLambertMaterial(
       TEXTURES[p.name] ? { map: loadTex(TEXTURES[p.name]) } : { map: makeSurface(p) }));
     p.mesh.add(p.body);
+    if (p.noBody) p.body.visible = false;
     scene.add(p.mesh);
     const rot = ROTATION[p.name];
     if (rot) {
@@ -507,6 +517,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   ORBITERS.forEach(p => sampleOrbit(p, 0));
   SATS.forEach(m => sampleOrbit(m, 0));
+  // Earth's equatorial basis: local +x (Greenwich at zero spin) and local -z (90° east), in the scene
+  const earthE1 = new THREE.Vector3(1, 0, 0).applyQuaternion(EARTH.mesh.quaternion);
+  const earthE2 = new THREE.Vector3(0, 0, -1).applyQuaternion(EARTH.mesh.quaternion);
 
   // Asteroid belt: sample asteroids on Kepler orbits between 2.1 and 3.3 AU, skipping the
   // Kirkwood gaps at Jupiter's 3:1, 5:2 and 7:3 resonances
@@ -558,7 +571,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   const sunLabel = makeLabel("Sun", "sun");
   const constLabels = CONST_NAMES.map(([name, ra, dec]) => ({ el: makeLabel(name, "const"), dir: skyDir(ra, dec, new THREE.Vector3()) }));
-  ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon || p.sat ? "minor" : ""); });
+  ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon || p.sat || p.iss ? "minor" : ""); });
 
   // ---------- almanac ----------
   const rowsEl = document.getElementById("rows");
@@ -572,10 +585,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   function addRow(p) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "row" + (p.moon || p.sat ? " sub" : "");
-    const dist = p.moon || p.sat ? `${Math.round(p.a * AU_KM).toLocaleString("en-GB")} km` : `${p.a.toFixed(2)} AU`;
+    const dist = p.iss ? "about 420 km up" : p.moon || p.sat ? `${Math.round(p.a * AU_KM).toLocaleString("en-GB")} km` : `${p.a.toFixed(2)} AU`;
     b.innerHTML = `<span class="dot" style="background:${p.color}"></span>
       <span class="name">${p.name}</span>
-      <span class="stats">${dist} · ${fmtPeriod(p.P)}${p.retro ? " retro." : ""}</span>
+      <span class="stats">${dist} · ${p.iss ? (p.P * 1440).toFixed(1) + " min" : fmtPeriod(p.P)}${p.retro ? " retro." : ""}</span>
       <span class="laps"><span class="bar"><i></i></span><span class="count">0.00</span></span>`;
     b.setAttribute("aria-label", `Follow ${p.name}`);
     b.addEventListener("click", () => follow(follow.target === p ? null : p));
@@ -584,7 +597,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   addHead("Planets");
   const addMoons = host => SATS.filter(m => m.host === host).forEach(addRow);
-  PLANETS.forEach(p => { addRow(p); if (p === EARTH) addRow(MOON); addMoons(p); });
+  PLANETS.forEach(p => { addRow(p); if (p === EARTH) { addRow(MOON); addRow(ISS); } addMoons(p); });
   const dwarfHead = addHead("Dwarf planets");
   DWARFS.forEach(p => { addRow(p); addMoons(p); });
 
@@ -712,6 +725,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const sizeAt = (comp, tru, k) => Math.exp(lerp(Math.log(comp), Math.log(tru), k));
   const bodySize = (p, k) => sizeAt(compSize(p), trueSize(p.R), k);
   function fitDistance(k) {
+    if (follow.target && follow.target.iss) return bodySize(EARTH, k) * 3.2;   // frame the ISS against Earth
     if (follow.target) return Math.max(bodySize(follow.target, k) * 14, 0.0006);
     return lerp(112, 760, k);
   }
@@ -836,7 +850,13 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       const turns = simDays * 24 / hours, cap = 0.4 * dt;
       obj.rotation.y += 2 * Math.PI * Math.max(-cap, Math.min(cap, turns));
     };
-    ALL.forEach(p => { if (p.spinHours) spin(p.body, p.spinHours); });
+    // Earth turns to its real orientation (Greenwich sidereal time) while time runs slowly enough to follow it,
+    // so the ISS passes over the right places; faster than that it just spins
+    if (Math.abs(state.speed) <= 0.4 && typeof satellite !== "undefined") {
+      const g = skyDir(satellite.gstime(new Date(J2000_MS + state.t * DAY_MS)) / DEG, 0, v3);
+      EARTH.body.rotation.y = Math.atan2(g.dot(earthE2), g.dot(earthE1));
+    } else spin(EARTH.body, EARTH.spinHours);
+    ALL.forEach(p => { if (p.spinHours && p !== EARTH) spin(p.body, p.spinHours); });
     if (EARTH.clouds) spin(EARTH.clouds, 30);
     spin(sun, ROTATION.Sun[2]);
 
@@ -857,6 +877,34 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       placeBody(m, eb);
       if (m.orbit.visible) updateOrbitLine(m, k, flat, host.mesh.position, scale);
     });
+
+    // ISS: SGP4 position (km, true equator of date ~ J2000 equator), at its true height relative to Earth as drawn
+    {
+      const date = new Date(J2000_MS + state.t * DAY_MS);
+      const pv = ISS.rec && Math.abs(state.t - ISS.epochDays) < 365 ? satellite.propagate(ISS.rec, date) : null;
+      const ok = !!(pv && pv.position);
+      ISS.mesh.visible = ISS.marker.visible = ISS.orbit.visible = ok;
+      if (ok) {
+        const kmScale = EARTH.mesh.scale.x / 6371;
+        const issToScene = (r, out) => {  // equatorial km -> ecliptic -> scene
+          const ye = r.y * Math.cos(EPS) + r.z * Math.sin(EPS), ze = -r.y * Math.sin(EPS) + r.z * Math.cos(EPS);
+          return out.set(r.x * kmScale, ze * kmScale * (1 - flat), -ye * kmScale).add(EARTH.mesh.position);
+        };
+        issToScene(pv.position, ISS.mesh.position);
+        placeBody(ISS, eb);
+        ISS.marker.material.opacity = 1;
+        // orbit path: one revolution ahead
+        const arr = ISS.orbit.geometry.attributes.position.array;
+        for (let i = 0; i <= ORBIT_N; i++) {
+          const q = satellite.propagate(ISS.rec, new Date(date.getTime() + ISS.P * DAY_MS * i / ORBIT_N));
+          if (!q || !q.position) break;
+          issToScene(q.position, v3);
+          arr[i * 3] = v3.x; arr[i * 3 + 1] = v3.y; arr[i * 3 + 2] = v3.z;
+        }
+        ISS.orbit.geometry.attributes.position.needsUpdate = true;
+        ISS.orbit.geometry.computeBoundingSphere();
+      }
+    }
 
     if (state.asteroids) updateBelt(state.t, k, flat);
     lastBlend = state.blend; lastFlat = state.flat;
@@ -907,6 +955,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     // hide the Moon's label when it would sit on top of Earth's
     scr(EARTH.mesh.position, earthAt); scr(MOON.mesh.position, at);
     if (Math.hypot(at.x - earthAt.x, at.y - earthAt.y) < 40) MOON.label.style.display = "none";
+    if (ISS.label.style.display !== "none") {
+      scr(EARTH.mesh.position, earthAt); scr(ISS.mesh.position, at);
+      if (Math.hypot(at.x - earthAt.x, at.y - earthAt.y) < 30) ISS.label.style.display = "none";
+    }
     SATS.forEach(m => {
       if (m.label.style.display === "none") return;
       scr(m.host.mesh.position, earthAt); scr(m.mesh.position, at);
