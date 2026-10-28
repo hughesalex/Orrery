@@ -832,15 +832,17 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 
   // The control rail and almanac cover part of the canvas. Shift the projection (not the camera) so the point the
   // camera orbits, i.e. the followed body or the Sun, sits in the middle of the area they leave clear.
-  const controlsEl = document.getElementById("controls");
+  const controlsEl = document.getElementById("controls"), titleEl = document.getElementById("title");
   function clearArea(w, h) {
     let right = w, bottom = controlsEl.getBoundingClientRect().top;
+    const top = titleEl.getBoundingClientRect().bottom;             // below the title and date box
     if (!almanac.hidden) {
       const r = almanac.getBoundingClientRect();
       if (r.left > w * 0.4) right = Math.min(right, r.left);       // docked at the side (desktop)
       else bottom = Math.min(bottom, r.top);                       // docked above the controls (phone)
     }
-    return { cx: right / 2, cy: Math.max(bottom, h * 0.35) / 2 };
+    bottom = Math.max(bottom, top + h * 0.25);
+    return { cx: right / 2, cy: (top + bottom) / 2 };
   }
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -851,7 +853,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
-  if (window.ResizeObserver) { const ro = new ResizeObserver(() => resize()); ro.observe(controlsEl); ro.observe(almanac); }
+  if (window.ResizeObserver) { const ro = new ResizeObserver(() => resize()); ro.observe(controlsEl); ro.observe(almanac); ro.observe(titleEl); }
 
   // ---------- tap or click a body to centre on it ----------
   // Bodies are picked in screen space: a hit is inside the drawn disc, or within a small radius of a body too small to see.
