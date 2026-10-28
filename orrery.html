@@ -54,6 +54,8 @@ body {
   font-size: 22px; letter-spacing: 0.08em; color: var(--brass-hi); text-wrap: balance;
 }
 #date { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; }
+#time { margin-left: 1.2em; }
+#time small { font-size: 11px; color: var(--muted); margin-left: 0.4em; }
 #elapsed { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #scaleNote { font-size: 12px; color: var(--muted); line-height: 1.4; }
 
@@ -146,7 +148,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 
 <section id="title" class="plate">
   <h1>Brass Orrery</h1>
-  <div id="date">—</div>
+  <div><span id="date">—</span><span id="time"></span></div>
   <div id="elapsed">0.00 Earth years elapsed</div>
   <div id="scaleNote"></div>
 </section>
@@ -1006,6 +1008,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   // ---------- frame loop ----------
   const dateEl = document.getElementById("date"), elapsedEl = document.getElementById("elapsed");
   const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const timeEl = document.getElementById("time"), timeText = document.createTextNode("");
+  timeEl.append(timeText, Object.assign(document.createElement("small"), { textContent: "UTC" }));
   let last = performance.now(), lastBlend = -1, lastFlat = -1, lastUi = 0;
   const prevTarget = new THREE.Vector3();
   const smooth = x => x * x * (3 - 2 * x);
@@ -1192,7 +1196,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     if (now - lastUi > 120) {
       lastUi = now;
       const ms = J2000_MS + state.t * DAY_MS;
-      dateEl.textContent = Number.isFinite(ms) && Math.abs(ms) < 8.64e15 ? dateFmt.format(new Date(ms)) : "—";
+      const okDate = Number.isFinite(ms) && Math.abs(ms) < 8.64e15, d = new Date(ms);
+      dateEl.textContent = okDate ? dateFmt.format(d) : "—";
+      timeText.data = okDate ? `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}` : "";
+      timeEl.hidden = !okDate;
       const yrs = (state.t - state.tStart) / 365.256;
       elapsedEl.textContent = `${yrs >= 0 ? "" : "−"}${Math.abs(yrs).toFixed(2)} Earth years elapsed`;
       ALL.forEach(p => {
