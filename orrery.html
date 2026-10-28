@@ -125,12 +125,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 #webglError[hidden] { display: none; }
 #webglError { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); text-align: center; color: var(--muted); }
 
-#toggleAlmanac { display: none; }
 @media (max-width: 720px) {
   #title { padding: 8px 12px; }
   #title h1 { font-size: 17px; }
   #scaleNote { display: none; }
-  #toggleAlmanac { display: inline-block; }
   #almanac {
     top: auto; right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px));
     width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 150px); max-height: 46%;
@@ -188,7 +186,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
     <button class="btn" id="axesBtn" type="button" aria-pressed="true" title="Show or hide each body's rotation axis (bright end = north pole)">Axes</button>
-    <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
+    <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true" title="Show or hide the almanac panel">Almanac</button>
   </div>
 </div>
 
