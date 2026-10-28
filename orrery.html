@@ -32,6 +32,7 @@ body {
   will-change: transform;
 }
 .label.sun { color: var(--brass-hi); }
+.label.minor { font-size: 10px; color: var(--muted); }
 
 .plate {
   background: var(--plate); border: 1px solid var(--line); border-radius: 6px;
@@ -69,11 +70,16 @@ body {
 }
 #almanac header span { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
 #rows { display: grid; }
+.group-head {
+  padding: 10px 14px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass);
+}
 .row {
   display: grid; grid-template-columns: 10px 1fr auto; column-gap: 10px; row-gap: 4px;
-  align-items: center; padding: 7px 14px; cursor: pointer;
+  align-items: center; padding: 6px 14px; cursor: pointer;
   border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%;
 }
+.row.sub { padding-left: 34px; }
+.row.sub .dot { width: 7px; height: 7px; justify-self: center; }
 .row:hover { background: rgba(201, 164, 92, 0.08); }
 .row:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
 .row.active { background: rgba(201, 164, 92, 0.16); }
@@ -90,7 +96,7 @@ body {
   position: fixed;
   left: 50%; transform: translateX(-50%);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
-  width: min(760px, calc(100% - 32px));
+  width: min(940px, calc(100% - 32px));
   padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center;
 }
 .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -164,6 +170,13 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       <button class="btn" id="scaleCompressed" type="button" aria-pressed="true">Compressed</button>
       <button class="btn" id="scaleTrue" type="button" aria-pressed="false">True</button>
     </div>
+  </div>
+  <div class="group">
+    <span class="caption">View</span>
+    <div class="seg" role="group" aria-label="Viewing angle">
+      <button class="btn" id="view3d" type="button" aria-pressed="true">3D</button>
+      <button class="btn" id="viewTop" type="button" aria-pressed="false">Top-down</button>
+    </div>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
   </div>
 </div>
@@ -180,7 +193,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const J2000_MS = Date.UTC(2000, 0, 1, 12);
   const DAY_MS = 86400000;
 
-  // J2000 mean orbital elements (JPL, Standish): a [AU], e, i, mean longitude L, longitude of perihelion w, ascending node O [deg]; sidereal period P [days]; equatorial radius R [km]
+  // Elements referred to J2000: a [AU], e, i, mean longitude L at J2000, longitude of perihelion w, ascending node O [deg];
+  // sidereal period P [days]; mean radius R [km]. wDot/ODot are precession rates in deg/day (Moon only).
+  // Planets and Pluto: JPL approximate elements (Standish). Other dwarf planets: recent osculating elements, converted to J2000.
   const PLANETS = [
     { name: "Mercury", a: 0.38709927, e: 0.20563593, i: 7.00497902, L: 252.25032350, w: 77.45779628,  O: 48.33076593,  P: 87.969,   R: 2439.7, color: "#a9a39a" },
     { name: "Venus",   a: 0.72333566, e: 0.00677672, i: 3.39467605, L: 181.97909950, w: 131.60246718, O: 76.67984255,  P: 224.701,  R: 6051.8, color: "#e3c48f" },
@@ -191,36 +206,51 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     { name: "Uranus",  a: 19.18916464,e: 0.04725744, i: 0.77263783, L: 313.23810451, w: 170.95427630, O: 74.01692503,  P: 30688.5,  R: 25362,  color: "#9fd8df" },
     { name: "Neptune", a: 30.06992276,e: 0.00859048, i: 1.77004347, L: -55.12002969, w: 44.96476227,  O: 131.78422574, P: 60182,    R: 24622,  color: "#5a74d8" },
   ];
+  const DWARFS = [
+    { name: "Ceres",    a: 2.77,        e: 0.0785,     i: 10.6,        L: 159.121,      w: 153.9,        O: 80.3,         P: 1680,     R: 469.7,  color: "#b9b2a6" },
+    { name: "Pluto",    a: 39.48211675, e: 0.24882730, i: 17.14001206, L: 238.92903833, w: 224.06891629, O: 110.30393684, P: 90560,    R: 1188.3, color: "#d8b79a" },
+    { name: "Haumea",   a: 43.116,      e: 0.19642,    i: 28.2137,     L: 192.762,      w: 1.208,        O: 122.167,      P: 103410,   R: 780,    color: "#e4e0da" },
+    { name: "Makemake", a: 45.499,      e: 0.1604,     i: 29.002,      L: 155.616,      w: 15.506,       O: 79.441,       P: 112022,   R: 715,    color: "#c98f6e" },
+    { name: "Eris",     a: 67.69,       e: 0.44,       i: 44.18,       L: 16.1,         w: 187.68,       O: 36.02,        P: 203956,   R: 1163,   color: "#d6d4de" },
+  ];
+  DWARFS.forEach(d => { d.dwarf = true; });
+  // Moon: geocentric mean elements referred to the ecliptic
+  const MOON = { name: "Moon", a: 384400 / AU_KM, e: 0.0549, i: 5.145, L: 218.3165, w: 83.3532, O: 125.0445, P: 27.321661,
+                 wDot: 0.11140353, ODot: -0.05295377, R: 1737.4, color: "#cfcac0", moon: true };
+  const EARTH = PLANETS[2];
+  const ORBITERS = PLANETS.concat(DWARFS);          // bodies that orbit the Sun
+  const ALL = ORBITERS.concat([MOON]);
   const SUN_R_KM = 695700;
 
   // Sizes: compressed view exaggerates bodies so they can be seen; true view uses real radii
-  const compSize = R => 0.7 * Math.pow(R / 6371, 0.35);
+  const compSize = p => p.moon ? 0.24 : 0.7 * Math.pow(p.R / 6371, 0.35);
   const trueSize = R => R / AU_KM * U;
   const SUN_COMP = 3.0;
+  const MOON_DIST_COMP = 1.7;                       // Earth–Moon distance in compressed view, scene units
 
   // ---------- orbital mechanics ----------
-  function rotate(p, xp, yp, out) {
-    const w = (p.w - p.O) * DEG, O = p.O * DEG, I = p.i * DEG;
+  function rotate(p, xp, yp, t, out) {
+    const wT = p.w + (p.wDot || 0) * t, OT = p.O + (p.ODot || 0) * t;
+    const w = (wT - OT) * DEG, O = OT * DEG, I = p.i * DEG;
     const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(O), sO = Math.sin(O), cI = Math.cos(I), sI = Math.sin(I);
     out[0] = (cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp;
     out[1] = (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp;
     out[2] = (sw * sI) * xp + (cw * sI) * yp;
     return out;
   }
-  function helio(p, t, out) {          // heliocentric ecliptic position [AU] at t days from J2000
-    const n = 360 / p.P;
-    const M = ((((p.L - p.w + n * t) % 360) + 360) % 360) * DEG;
+  function position(p, t, out) {       // ecliptic position [AU] relative to the parent body at t days from J2000
+    const wT = p.w + (p.wDot || 0) * t;
+    const M = ((((p.L + 360 / p.P * t - wT) % 360) + 360) % 360) * DEG;
     let E = M + p.e * Math.sin(M);
     for (let k = 0; k < 6; k++) E -= (E - p.e * Math.sin(E) - M) / (1 - p.e * Math.cos(E));
-    const xp = p.a * (Math.cos(E) - p.e);
-    const yp = p.a * Math.sqrt(1 - p.e * p.e) * Math.sin(E);
-    return rotate(p, xp, yp, out);
+    return rotate(p, p.a * (Math.cos(E) - p.e), p.a * Math.sqrt(1 - p.e * p.e) * Math.sin(E), t, out);
   }
   // Map AU (ecliptic x,y,z) to scene coords. Distance from the Sun is r^k: k = 0.5 compressed, 1 true.
-  function toScene(v, k, target, offset = 0) {
+  // flat squashes height above the ecliptic for the top-down view.
+  function toScene(v, k, flat, target) {
     const r = Math.hypot(v[0], v[1], v[2]) || 1e-9;
     const s = U * Math.pow(r, k) / r;
-    return target.set(v[0] * s + offset, v[2] * s, -v[1] * s);
+    return target.set(v[0] * s, v[2] * s * (1 - flat), -v[1] * s);
   }
 
   // ---------- renderer ----------
@@ -236,18 +266,17 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#06080f");
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.0005, 60000);
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.00005, 60000);
   camera.position.set(0, 62, 92);
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 0.002;
-  controls.maxDistance = 4000;
+  controls.minDistance = 0.0003;
+  controls.maxDistance = 6000;
   controls.enablePan = false;
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.16));
-  const sunLight = new THREE.PointLight(0xfff2dc, 1.5, 0, 0);
-  scene.add(sunLight);
+  scene.add(new THREE.PointLight(0xfff2dc, 1.5, 0, 0));
 
   // starfield
   {
@@ -282,36 +311,39 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   scene.add(glow);
   const dotTex = radialTexture([[0, "rgba(255,255,255,1)"], [0.55, "rgba(255,255,255,1)"], [0.75, "rgba(255,255,255,0)"]]);
 
-  // Planets
+  // Bodies
   const ORBIT_N = 256;
   const tmp = [0, 0, 0];
   const v3 = new THREE.Vector3();
-  PLANETS.forEach(p => {
+  ALL.forEach(p => {
     p.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), new THREE.MeshLambertMaterial({ color: p.color }));
     scene.add(p.mesh);
     if (p.ring) {
-      const rg = new THREE.RingGeometry(1.25, 2.3, 96);
-      const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0xd9c79a, side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(1.25, 2.3, 96),
+        new THREE.MeshBasicMaterial({ color: 0xd9c79a, side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
       ring.rotation.x = -Math.PI / 2 + 26.7 * DEG;
       p.mesh.add(ring);
     }
-    // marker dot that keeps a planet visible when it is too small to see at true scale
+    // marker dot that keeps a body visible when it is too small to see at true scale
     const mg = new THREE.BufferGeometry();
     mg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(3), 3));
-    p.marker = new THREE.Points(mg, new THREE.PointsMaterial({ color: p.color, size: 7, sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false, opacity: 0 }));
+    p.marker = new THREE.Points(mg, new THREE.PointsMaterial({ color: p.color, size: p.dwarf || p.moon ? 5 : 7, sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false, opacity: 0 }));
     scene.add(p.marker);
-    // orbit path sampled in AU once, remapped to the scene when the scale changes
+    // orbit path sampled in AU once, remapped to the scene when the scale or view changes
     p.orbitAU = new Float32Array((ORBIT_N + 1) * 3);
-    for (let k = 0; k <= ORBIT_N; k++) {
-      const E = (k / ORBIT_N) * Math.PI * 2;
-      rotate(p, p.a * (Math.cos(E) - p.e), p.a * Math.sqrt(1 - p.e * p.e) * Math.sin(E), tmp);
-      p.orbitAU.set(tmp, k * 3);
-    }
     const og = new THREE.BufferGeometry();
     og.setAttribute("position", new THREE.BufferAttribute(new Float32Array((ORBIT_N + 1) * 3), 3));
-    p.orbit = new THREE.Line(og, new THREE.LineBasicMaterial({ color: p.color, transparent: true, opacity: 0.35 }));
+    p.orbit = new THREE.Line(og, new THREE.LineBasicMaterial({ color: p.color, transparent: true, opacity: p.dwarf ? 0.22 : 0.35 }));
     scene.add(p.orbit);
   });
+  function sampleOrbit(p, t) {
+    for (let k = 0; k <= ORBIT_N; k++) {
+      const E = (k / ORBIT_N) * Math.PI * 2;
+      rotate(p, p.a * (Math.cos(E) - p.e), p.a * Math.sqrt(1 - p.e * p.e) * Math.sin(E), t, tmp);
+      p.orbitAU.set(tmp, k * 3);
+    }
+  }
+  ORBITERS.forEach(p => sampleOrbit(p, 0));
 
   // ---------- labels ----------
   const labelLayer = document.getElementById("labels");
@@ -323,23 +355,33 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     return el;
   }
   const sunLabel = makeLabel("Sun", "sun");
-  PLANETS.forEach(p => { p.label = makeLabel(p.name); });
+  ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon ? "minor" : ""); });
 
   // ---------- almanac ----------
   const rowsEl = document.getElementById("rows");
-  const fmtPeriod = d => d < 1000 ? `${d.toFixed(0)} days` : `${(d / 365.256).toFixed(1)} yrs`;
-  PLANETS.forEach(p => {
+  const fmtPeriod = d => d < 1000 ? `${d.toFixed(d < 100 ? 1 : 0)} days` : `${(d / 365.256).toFixed(1)} yrs`;
+  function addHead(text) {
+    const h = document.createElement("div");
+    h.className = "group-head"; h.textContent = text;
+    rowsEl.appendChild(h);
+  }
+  function addRow(p) {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "row";
+    b.type = "button"; b.className = "row" + (p.moon ? " sub" : "");
+    const dist = p.moon ? `${Math.round(p.a * AU_KM).toLocaleString("en-GB")} km` : `${p.a.toFixed(2)} AU`;
     b.innerHTML = `<span class="dot" style="background:${p.color}"></span>
       <span class="name">${p.name}</span>
-      <span class="stats">${p.a.toFixed(2)} AU · ${fmtPeriod(p.P)}</span>
+      <span class="stats">${dist} · ${fmtPeriod(p.P)}</span>
       <span class="laps"><span class="bar"><i></i></span><span class="count">0.00</span></span>`;
     b.setAttribute("aria-label", `Follow ${p.name}`);
     b.addEventListener("click", () => follow(follow.target === p ? null : p));
     p.row = b; p.bar = b.querySelector(".bar i"); p.count = b.querySelector(".count");
     rowsEl.appendChild(b);
-  });
+  }
+  addHead("Planets");
+  PLANETS.forEach(p => { addRow(p); if (p === EARTH) addRow(MOON); });
+  addHead("Dwarf planets");
+  DWARFS.forEach(addRow);
 
   // ---------- state ----------
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -349,6 +391,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     paused: reduceMotion, dir: 1,
     speed: 30,                 // days per second
     blend: 0, blendTarget: 0,  // 0 compressed, 1 true
+    flat: 0, flatTarget: 0,    // 0 3D, 1 top-down
   };
   const SPEED_MIN = 0.1, SPEED_MAX = 18262; // 2.4 hours/s to 50 years/s
   const speedInput = document.getElementById("speed");
@@ -385,13 +428,29 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     bComp.setAttribute("aria-pressed", String(!isTrue));
     bTrue.setAttribute("aria-pressed", String(isTrue));
     scaleNote.textContent = isTrue
-      ? "True scale. Distances are proportional to real distances. Planets and Sun are drawn at true size, so most appear as dots."
-      : "Compressed scale. Distance from the Sun is shown as the square root of the real distance, and bodies are enlarged.";
+      ? "True scale. Distances are proportional to real distances, and every body is drawn at its true size, so most appear as dots."
+      : "Compressed scale. Distance from the Sun is shown as the square root of the real distance. Bodies are enlarged and the Moon is drawn farther from Earth.";
     if (reduceMotion) state.blend = state.blendTarget;
     flyTo(fitDistance(state.blendTarget));
   }
   bComp.addEventListener("click", () => setScale(false));
   bTrue.addEventListener("click", () => setScale(true));
+
+  // view toggle
+  const PHI_3D = 0.94, PHI_TOP = 0.0001;
+  const b3d = document.getElementById("view3d"), bTop = document.getElementById("viewTop");
+  function setView(top) {
+    if (top === (state.flatTarget === 1)) return;
+    state.flatTarget = top ? 1 : 0;
+    b3d.setAttribute("aria-pressed", String(!top));
+    bTop.setAttribute("aria-pressed", String(top));
+    if (reduceMotion) state.flat = state.flatTarget;
+    // unlock the tilt so the camera can swing; it is locked overhead again once the move ends
+    controls.minPolarAngle = 0; controls.maxPolarAngle = Math.PI;
+    flyTo(camera.position.distanceTo(controls.target), top ? PHI_TOP : PHI_3D);
+  }
+  b3d.addEventListener("click", () => setView(false));
+  bTop.addEventListener("click", () => setView(true));
 
   // almanac toggle (phone)
   const almanac = document.getElementById("almanac"), almBtn = document.getElementById("toggleAlmanac");
@@ -409,16 +468,21 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   // ---------- camera ----------
   const lerp = (a, b, x) => a + (b - a) * x;
   const sizeAt = (comp, tru, k) => Math.exp(lerp(Math.log(comp), Math.log(tru), k));
+  const bodySize = (p, k) => sizeAt(compSize(p), trueSize(p.R), k);
   function fitDistance(k) {
-    if (follow.target) return Math.max(sizeAt(compSize(follow.target.R), trueSize(follow.target.R), k) * 14, 0.004);
+    if (follow.target) return Math.max(bodySize(follow.target, k) * 14, 0.0006);
     return lerp(112, 760, k);
   }
-  let cam = null; // {from, to, t}
-  function flyTo(dist) { cam = { from: camera.position.distanceTo(controls.target), to: dist, t: reduceMotion ? 1 : 0 }; }
+  const sph = new THREE.Spherical();
+  let cam = null; // {from, to, fromPhi, toPhi, t}
+  function flyTo(dist, phi) {
+    sph.setFromVector3(v3.subVectors(camera.position, controls.target));
+    cam = { from: sph.radius, to: dist, fromPhi: sph.phi, toPhi: phi == null ? null : phi, t: reduceMotion ? 1 : 0 };
+  }
   function follow(p) {
     follow.target = p;
-    PLANETS.forEach(q => q.row.classList.toggle("active", q === p));
-    if (!p) { controls.target.set(0, 0, 0); }
+    ALL.forEach(q => q.row.classList.toggle("active", q === p));
+    if (!p) controls.target.set(0, 0, 0);
     flyTo(fitDistance(state.blendTarget));
   }
   follow.target = null;
@@ -435,47 +499,61 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   // ---------- frame loop ----------
   const dateEl = document.getElementById("date"), elapsedEl = document.getElementById("elapsed");
   const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  let last = performance.now(), lastBlend = -1, lastUi = 0;
+  let last = performance.now(), lastBlend = -1, lastFlat = -1, lastUi = 0;
   const prevTarget = new THREE.Vector3();
+  const smooth = x => x * x * (3 - 2 * x);
+  const ease = (cur, target, dt) => cur < target ? Math.min(target, cur + dt / 1.6) : Math.max(target, cur - dt / 1.6);
+
+  function updateOrbitLine(p, k, flat, origin, moonScale) {
+    const arr = p.orbit.geometry.attributes.position.array;
+    for (let i = 0; i <= ORBIT_N; i++) {
+      tmp[0] = p.orbitAU[i * 3]; tmp[1] = p.orbitAU[i * 3 + 1]; tmp[2] = p.orbitAU[i * 3 + 2];
+      if (moonScale) v3.set(tmp[0] * moonScale, tmp[2] * moonScale * (1 - flat), -tmp[1] * moonScale).add(origin);
+      else toScene(tmp, k, flat, v3);
+      arr[i * 3] = v3.x; arr[i * 3 + 1] = v3.y; arr[i * 3 + 2] = v3.z;
+    }
+    p.orbit.geometry.attributes.position.needsUpdate = true;
+    p.orbit.geometry.computeBoundingSphere();
+  }
+  function placeBody(p, eb) {
+    p.mesh.scale.setScalar(bodySize(p, eb));
+    p.marker.geometry.attributes.position.array.set([p.mesh.position.x, p.mesh.position.y, p.mesh.position.z]);
+    p.marker.geometry.attributes.position.needsUpdate = true;
+    p.marker.material.opacity = eb;
+  }
 
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (!state.paused) state.t += dt * state.speed * state.dir;
 
-    // ease the scale blend
-    if (state.blend !== state.blendTarget) {
-      const step = dt / 1.6;
-      state.blend = state.blend < state.blendTarget ? Math.min(state.blendTarget, state.blend + step) : Math.max(state.blendTarget, state.blend - step);
-    }
-    const b = state.blend;
-    const eb = b * b * (3 - 2 * b);          // smoothstep
+    state.blend = ease(state.blend, state.blendTarget, dt);
+    state.flat = ease(state.flat, state.flatTarget, dt);
+    const eb = smooth(state.blend), flat = smooth(state.flat);
     const k = lerp(0.5, 1, eb);
+    const remap = state.blend !== lastBlend || state.flat !== lastFlat;
 
     sun.scale.setScalar(sizeAt(SUN_COMP, trueSize(SUN_R_KM), eb));
     glow.scale.setScalar(sun.scale.x * lerp(7, 60, eb));
     glow.material.opacity = lerp(1, 0.8, eb);
 
-    PLANETS.forEach(p => {
-      helio(p, state.t, tmp);
-      toScene(tmp, k, p.mesh.position);
-      p.mesh.scale.setScalar(sizeAt(compSize(p.R), trueSize(p.R), eb));
-      p.marker.geometry.attributes.position.array.set([p.mesh.position.x, p.mesh.position.y, p.mesh.position.z]);
-      p.marker.geometry.attributes.position.needsUpdate = true;
-      p.marker.material.opacity = eb;
-      if (b !== lastBlend) {
-        const arr = p.orbit.geometry.attributes.position.array;
-        for (let i = 0; i <= ORBIT_N; i++) {
-          tmp[0] = p.orbitAU[i * 3]; tmp[1] = p.orbitAU[i * 3 + 1]; tmp[2] = p.orbitAU[i * 3 + 2];
-          toScene(tmp, k, v3);
-          arr[i * 3] = v3.x; arr[i * 3 + 1] = v3.y; arr[i * 3 + 2] = v3.z;
-        }
-        p.orbit.geometry.attributes.position.needsUpdate = true;
-        p.orbit.geometry.computeBoundingSphere();
-      }
+    ORBITERS.forEach(p => {
+      position(p, state.t, tmp);
+      toScene(tmp, k, flat, p.mesh.position);
+      placeBody(p, eb);
+      if (remap) updateOrbitLine(p, k, flat);
     });
-    lastBlend = b;
 
-    // camera: follow a planet by moving the orbit target with it
+    // Moon: geocentric offset, pushed out in the compressed view so it clears the enlarged Earth
+    const moonScale = sizeAt(MOON_DIST_COMP, MOON.a * U, eb) / MOON.a;
+    position(MOON, state.t, tmp);
+    MOON.mesh.position.set(tmp[0] * moonScale, tmp[2] * moonScale * (1 - flat), -tmp[1] * moonScale).add(EARTH.mesh.position);
+    placeBody(MOON, eb);
+    sampleOrbit(MOON, state.t);        // the Moon's orbit plane precesses, so resample it each frame
+    updateOrbitLine(MOON, k, flat, EARTH.mesh.position, moonScale);
+
+    lastBlend = state.blend; lastFlat = state.flat;
+
+    // camera: follow a body by moving the orbit target with it
     if (follow.target) {
       prevTarget.copy(controls.target);
       controls.target.copy(follow.target.mesh.position);
@@ -483,28 +561,38 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     }
     if (cam) {
       cam.t = Math.min(1, cam.t + dt / 1.6);
-      const e = cam.t * cam.t * (3 - 2 * cam.t);
-      const d = Math.exp(lerp(Math.log(cam.from), Math.log(cam.to), e));
-      v3.subVectors(camera.position, controls.target).setLength(d);
-      camera.position.copy(controls.target).add(v3);
-      if (cam.t >= 1) cam = null;
+      const e = smooth(cam.t);
+      sph.setFromVector3(v3.subVectors(camera.position, controls.target));
+      sph.radius = Math.exp(lerp(Math.log(cam.from), Math.log(cam.to), e));
+      if (cam.toPhi != null) sph.phi = lerp(cam.fromPhi, cam.toPhi, e);
+      sph.makeSafe();
+      camera.position.copy(controls.target).add(v3.setFromSpherical(sph));
+      if (cam.t >= 1) {
+        if (state.flatTarget === 1) { controls.minPolarAngle = 0; controls.maxPolarAngle = 0; }
+        cam = null;
+      }
     }
     controls.update();
     renderer.render(scene, camera);
 
     // labels
     const w = window.innerWidth, h = window.innerHeight;
+    const scr = (pos, out) => { v3.copy(pos).project(camera); out.x = (v3.x * 0.5 + 0.5) * w; out.y = (-v3.y * 0.5 + 0.5) * h; out.z = v3.z; return out; };
+    const at = { x: 0, y: 0, z: 0 }, earthAt = { x: 0, y: 0, z: 0 };
     const place = (el, pos, radius) => {
-      v3.copy(pos).project(camera);
-      if (v3.z > 1 || v3.z < -1) { el.style.display = "none"; return; }
+      scr(pos, at);
+      if (at.z > 1 || at.z < -1) { el.style.display = "none"; return; }
       el.style.display = "";
       const camDist = camera.position.distanceTo(pos);
       const px = radius / (camDist * Math.tan(camera.fov * DEG / 2)) * h / 2;
-      const x = (v3.x * 0.5 + 0.5) * w, y = (-v3.y * 0.5 + 0.5) * h;
-      el.style.transform = `translate(${Math.round(x + Math.max(px, 4) + 4)}px, ${Math.round(y - 7)}px)`;
+      el.style.transform = `translate(${Math.round(at.x + Math.max(px, 4) + 4)}px, ${Math.round(at.y - 7)}px)`;
     };
     place(sunLabel, sun.position, sun.scale.x);
-    PLANETS.forEach(p => place(p.label, p.mesh.position, p.mesh.scale.x));
+    ORBITERS.forEach(p => place(p.label, p.mesh.position, p.mesh.scale.x));
+    place(MOON.label, MOON.mesh.position, MOON.mesh.scale.x);
+    // hide the Moon's label when it would sit on top of Earth's
+    scr(EARTH.mesh.position, earthAt); scr(MOON.mesh.position, at);
+    if (Math.hypot(at.x - earthAt.x, at.y - earthAt.y) < 40) MOON.label.style.display = "none";
 
     // text readouts, ~8 times a second
     if (now - lastUi > 120) {
@@ -513,7 +601,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       dateEl.textContent = Number.isFinite(ms) && Math.abs(ms) < 8.64e15 ? dateFmt.format(new Date(ms)) : "—";
       const yrs = (state.t - state.tStart) / 365.256;
       elapsedEl.textContent = `${yrs >= 0 ? "" : "−"}${Math.abs(yrs).toFixed(2)} Earth years elapsed`;
-      PLANETS.forEach(p => {
+      ALL.forEach(p => {
         const laps = (state.t - state.tStart) / p.P;
         const lon = ((((p.L + 360 / p.P * state.t) % 360) + 360) % 360) / 360;
         p.bar.style.width = (lon * 100).toFixed(1) + "%";
