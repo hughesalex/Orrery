@@ -180,8 +180,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       <button class="btn" id="view3d" type="button" aria-pressed="true">3D</button>
       <button class="btn" id="viewTop" type="button" aria-pressed="false">Top-down</button>
     </div>
-    <button class="btn" id="minor" type="button" aria-pressed="true" title="Show or hide the Moon, dwarf planets and asteroid belt">Minor bodies</button>
-    <button class="btn" id="constellations" type="button" aria-pressed="true" title="Show or hide constellation lines and names">Constellations</button>
+    <button class="btn" id="minor" type="button" aria-pressed="false" title="Show or hide the Moon, dwarf planets and asteroid belt">Minor bodies</button>
+    <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
   </div>
 </div>
@@ -514,7 +514,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(BELT_N * 3), 3));
-    belt.points = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9c8f78, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.75, depthWrite: false }));
+    belt.points = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9c8f78, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0.38, depthWrite: false }));
     scene.add(belt.points);
   }
   function updateBelt(t, k, flat) {
@@ -660,13 +660,15 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 
   // constellations toggle
   const constBtn = document.getElementById("constellations");
-  state.constellations = true;
-  constBtn.addEventListener("click", () => {
-    state.constellations = !state.constellations;
-    constBtn.setAttribute("aria-pressed", String(state.constellations));
-    sky.constLines.visible = state.constellations;
-    if (!state.constellations) constLabels.forEach(c => { c.el.style.display = "none"; });
-  });
+  function setConstellations(on) {
+    state.constellations = on;
+    constBtn.setAttribute("aria-pressed", String(on));
+    sky.constLines.visible = on;
+    if (!on) constLabels.forEach(c => { c.el.style.display = "none"; });
+  }
+  constBtn.addEventListener("click", () => setConstellations(!state.constellations));
+  setConstellations(false);   // off by default
+  setMinor(false);            // off by default
 
   // almanac toggle (phone)
   const almanac = document.getElementById("almanac"), almBtn = document.getElementById("toggleAlmanac");
