@@ -600,7 +600,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     minor: false,              // show moons and dwarf planets
     asteroids: false,          // show the asteroid belt
   };
-  const SPEED_MIN = 0.1, SPEED_MAX = 18262; // 2.4 hours/s to 50 years/s
+  const SPEED_MIN = 0.5 / 24, SPEED_MAX = 18262; // 0.5 hours/s to 50 years/s
   const speedInput = document.getElementById("speed");
   const sliderToSpeed = v => SPEED_MIN * Math.pow(SPEED_MAX / SPEED_MIN, v / 1000);
   const speedToSlider = s => Math.round(1000 * Math.log(s / SPEED_MIN) / Math.log(SPEED_MAX / SPEED_MIN));
