@@ -797,7 +797,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   // almanac toggle (phone)
   const almanac = document.getElementById("almanac"), almBtn = document.getElementById("toggleAlmanac");
   if (window.matchMedia("(max-width: 720px)").matches) { almanac.hidden = true; almBtn.setAttribute("aria-pressed", "false"); }
-  almBtn.addEventListener("click", () => { almanac.hidden = !almanac.hidden; almBtn.setAttribute("aria-pressed", String(!almanac.hidden)); });
+  almBtn.addEventListener("click", () => { almanac.hidden = !almanac.hidden; almBtn.setAttribute("aria-pressed", String(!almanac.hidden)); resize(); });
 
   // keyboard
   window.addEventListener("keydown", e => {
@@ -830,13 +830,28 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   follow.target = null;
 
+  // The control rail and almanac cover part of the canvas. Shift the projection (not the camera) so the point the
+  // camera orbits, i.e. the followed body or the Sun, sits in the middle of the area they leave clear.
+  const controlsEl = document.getElementById("controls");
+  function clearArea(w, h) {
+    let right = w, bottom = controlsEl.getBoundingClientRect().top;
+    if (!almanac.hidden) {
+      const r = almanac.getBoundingClientRect();
+      if (r.left > w * 0.4) right = Math.min(right, r.left);       // docked at the side (desktop)
+      else bottom = Math.min(bottom, r.top);                       // docked above the controls (phone)
+    }
+    return { cx: right / 2, cy: Math.max(bottom, h * 0.35) / 2 };
+  }
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    const { cx, cy } = clearArea(w, h);
+    camera.setViewOffset(w, h, Math.round(w / 2 - cx), Math.round(h / 2 - cy), w, h);
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
+  if (window.ResizeObserver) { const ro = new ResizeObserver(() => resize()); ro.observe(controlsEl); ro.observe(almanac); }
 
   // ---------- tap or click a body to centre on it ----------
   // Bodies are picked in screen space: a hit is inside the drawn disc, or within a small radius of a body too small to see.
