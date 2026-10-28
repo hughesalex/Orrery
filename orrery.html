@@ -35,6 +35,7 @@ body {
 .label.pick { pointer-events: auto; cursor: pointer; padding: 4px 6px; margin: -4px -6px; }
 .label.pick:hover { color: var(--brass-hi); opacity: 1; }
 .label.minor { font-size: 10px; color: var(--muted); }
+.label.star { font-size: 10px; color: var(--muted); opacity: 0.9; }
 .label.const { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); opacity: 0.5; transform-origin: 0 0; }
 
 .plate {
@@ -153,7 +154,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Each body's spin axis is drawn through it, with the brighter end at its north pole.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. ISS: NORAD elements, SGP4 via satellite.js.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Each body's spin axis is drawn through it, with the brighter end at its north pole.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Nearby stars: RECONS and Gaia distances via Wikipedia. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -184,6 +185,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt, Kuiper belt and Oort cloud">Asteroids</button>
     <button class="btn" id="issBtn" type="button" aria-pressed="false" title="Show or hide the International Space Station">ISS</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
+    <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
     <button class="btn" id="axesBtn" type="button" aria-pressed="true" title="Show or hide each body's rotation axis (bright end = north pole)">Axes</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
   </div>
@@ -343,7 +345,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#06080f");
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.00005, 6e6);
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.00005, 1.2e8);
   camera.position.set(0, 62, 92);
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -631,6 +633,84 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     oort.points.geometry.attributes.position.needsUpdate = true;
   }
 
+  // The 50 nearest star systems (Proxima Centauri drawn apart from Alpha Centauri A and B): name, RA and Dec [deg, J2000],
+  // distance [light-years], spectral type of the brightest member, number of stars. From the List of nearest stars
+  // (Wikipedia, RECONS and Gaia parallaxes); brown-dwarf-only systems are left out.
+  const NEAR_STARS = [
+    ["Proxima Centauri", 217.429, -62.679, 4.2465, "M5.5Ve", 1],
+    ["Alpha Centauri A & B", 219.902, -60.834, 4.3441, "G2V", 2],
+    ["Barnard's Star", 269.452, 4.693, 5.9629, "M4.0Ve", 1],
+    ["Wolf 359", 164.122, 7.015, 7.856, "M6.0V", 1],
+    ["Lalande 21185", 165.834, 35.970, 8.3044, "M2.0V", 1],
+    ["Sirius A & B", 101.287, -16.716, 8.7094, "A1V", 2],
+    ["UV Ceti (Gliese 65)", 24.755, -17.950, 8.77, "M5.5Ve", 2],
+    ["Ross 154", 282.456, -23.836, 9.7063, "M3.5Ve", 1],
+    ["Ross 248", 355.478, 44.175, 10.3057, "M5.5Ve", 1],
+    ["Epsilon Eridani", 53.232, -9.458, 10.4749, "K2V", 1],
+    ["Lacaille 9352", 346.467, -35.853, 10.7241, "M0.5V", 1],
+    ["Ross 128", 176.935, 0.804, 11.0074, "M4.0V", 1],
+    ["EZ Aquarii", 339.639, -15.299, 11.109, "M5.0Ve", 3],
+    ["61 Cygni", 316.725, 38.749, 11.4039, "K5.0V", 2],
+    ["Procyon A & B", 114.825, 5.225, 11.463, "F5IV-V", 2],
+    ["Struve 2398", 280.695, 59.630, 11.4908, "M3.0V", 2],
+    ["Groombridge 34", 4.595, 44.023, 11.6191, "M1.5V", 2],
+    ["DX Cancri", 127.456, 26.777, 11.6797, "M6.5Ve", 1],
+    ["Epsilon Indi", 330.840, -56.786, 11.867, "K5Ve", 1],
+    ["Tau Ceti", 26.017, -15.938, 11.9118, "G8.5V", 1],
+    ["GJ 1061", 53.999, -44.513, 11.9839, "M5.5V", 1],
+    ["YZ Ceti", 18.127, -16.999, 12.1222, "M4.5V", 1],
+    ["Luyten's Star", 111.852, 5.226, 12.3485, "M3.5V", 1],
+    ["Teegarden's Star", 43.254, 16.881, 12.497, "M6.5V", 1],
+    ["Kapteyn's Star", 77.919, -45.018, 12.8308, "M1.5VI", 1],
+    ["Lacaille 8760", 319.314, -38.867, 12.9472, "M0.0V", 1],
+    ["SCR 1845-6357", 281.272, -63.963, 13.0638, "M8.5V", 1],
+    ["Kruger 60", 336.998, 57.696, 13.0724, "M3.0V", 2],
+    ["DENIS J1048-3956", 162.061, -39.935, 13.1932, "M8.5V", 1],
+    ["Ross 614", 97.347, -2.814, 13.363, "M4.5V", 2],
+    ["Wolf 1061", 247.575, -12.662, 14.05, "M3.0V", 1],
+    ["Van Maanen's Star", 12.291, 5.389, 14.0718, "DZ7", 1],
+    ["Gliese 1", 1.352, -37.358, 14.1747, "M1.5V", 1],
+    ["TZ Arietis", 30.055, 13.052, 14.578, "M4.5V", 1],
+    ["Wolf 424", 188.322, 9.021, 14.595, "M5.5Ve", 2],
+    ["Gliese 687", 264.108, 68.339, 14.8395, "M3.0V", 1],
+    ["Gliese 674", 262.166, -46.895, 14.8492, "M3.0V", 1],
+    ["LHS 292", 162.053, -11.337, 14.8706, "M6.5V", 1],
+    ["Gliese 440", 176.429, -64.841, 15.1226, "DQ6", 1],
+    ["GJ 1245", 298.476, 44.415, 15.2001, "M5.5V", 3],
+    ["Gliese 876", 343.320, -14.264, 15.2382, "M3.5V", 1],
+    ["LHS 288", 161.088, -61.210, 15.7586, "M5.5V", 1],
+    ["GJ 1002", 1.682, -7.539, 15.806, "M5.5V", 1],
+    ["Groombridge 1618", 152.842, 49.454, 15.8857, "K7.0V", 1],
+    ["Gliese 412", 166.369, 43.527, 15.9969, "M1.0V", 2],
+    ["AD Leonis", 154.902, 19.869, 16.1939, "M3.0V", 1],
+    ["Gliese 832", 323.392, -49.009, 16.2005, "M1.5V", 1],
+    ["Gliese 682", 264.265, -44.319, 16.3328, "M4V", 1],
+    ["Omicron2 Eridani (Keid)", 63.818, -7.653, 16.333, "K0.5V", 3],
+    ["EV Lacertae", 341.707, 44.334, 16.4761, "M3.5V", 1],
+    ["70 Ophiuchi", 271.364, 2.500, 16.7074, "K0V", 2],
+  ];
+  const LY_AU = 63241.077;
+  const starColor = sp => ({ O: 0x9bb0ff, B: 0xaabfff, A: 0xdfe6ff, F: 0xfff4e8, G: 0xffe8b0, K: 0xffc27a, M: 0xff9a5c, D: 0xc8d8ff })[sp[0]] || 0xffffff;
+  const starSize = sp => ({ A: 9, F: 8, G: 7.5, K: 6.5, M: 5, D: 4.5 })[sp[0]] || 5;
+  const nearStars = NEAR_STARS.map(([name, ra, dec, ly, sp, n]) => {
+    const st = { name, ly, sp, n, dir: skyDir(ra, dec, new THREE.Vector3()), pos: new THREE.Vector3() };
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(3), 3));
+    st.points = new THREE.Points(g, new THREE.PointsMaterial({ color: starColor(sp), size: starSize(sp), sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false }));
+    st.points.frustumCulled = false;
+    st.points.visible = false;
+    scene.add(st.points);
+    return st;
+  });
+  function updateNearStars(k, flat) {
+    nearStars.forEach(st => {
+      const s = U * Math.pow(st.ly * LY_AU, k);
+      st.pos.set(st.dir.x * s, st.dir.y * s * (1 - flat), st.dir.z * s);
+      st.points.geometry.attributes.position.array.set([st.pos.x, st.pos.y, st.pos.z]);
+      st.points.geometry.attributes.position.needsUpdate = true;
+    });
+  }
+
   // ---------- labels ----------
   const labelLayer = document.getElementById("labels");
   function makeLabel(text, cls) {
@@ -641,6 +721,11 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     return el;
   }
   const sunLabel = makeLabel("Sun", "sun");
+  nearStars.forEach(st => {
+    st.el = makeLabel(`${st.name} · ${st.ly.toFixed(1)} ly`, "star");
+    st.el.title = `${st.sp}${st.n > 1 ? `, ${st.n} stars` : ""}`;
+    st.el.style.display = "none";
+  });
   const constLabels = CONST_NAMES.map(([name, ra, dec]) => ({ el: makeLabel(name, "const"), dir: skyDir(ra, dec, new THREE.Vector3()) }));
   ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon || p.sat || p.iss ? "minor" : ""); });
 
@@ -788,6 +873,18 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   constBtn.addEventListener("click", () => setConstellations(!state.constellations));
   setConstellations(false);   // off by default
 
+  // nearby stars toggle: switching on flies the camera out to take them in (unless following a body)
+  const nearBtn = document.getElementById("nearBtn");
+  function setNearStars(on, fly) {
+    state.nearStars = on;
+    nearBtn.setAttribute("aria-pressed", String(on));
+    nearStars.forEach(st => { st.points.visible = on; if (!on) st.el.style.display = "none"; });
+    nearStars.stale = true;
+    if (fly && !follow.target) flyTo(fitDistance(state.blendTarget));
+  }
+  nearBtn.addEventListener("click", () => setNearStars(!state.nearStars, true));
+  setNearStars(false);
+
   // rotation axes toggle
   const axesBtn = document.getElementById("axesBtn");
   function setAxes(on) {
@@ -822,6 +919,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   function fitDistance(k) {
     if (follow.target && follow.target.iss) return bodySize(EARTH, k) * 3.2;   // frame the ISS against Earth
     if (follow.target) return Math.max(bodySize(follow.target, k) * 14, 0.0006);
+    if (state.nearStars) return Math.exp(lerp(Math.log(30000), Math.log(3.2e7), k));   // take in the nearby stars
     return lerp(112, 760, k);
   }
   const sph = new THREE.Spherical();
@@ -1023,6 +1121,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       updateSwarm(kuiper, state.t, k, flat);
       if (remap || oort.stale) { updateOort(k, flat); oort.stale = false; }
     }
+    if (state.nearStars && (remap || nearStars.stale)) { updateNearStars(k, flat); nearStars.stale = false; }
     lastBlend = state.blend; lastFlat = state.flat;
 
     // camera: follow a body by moving the orbit target with it
@@ -1044,7 +1143,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
         cam = null;
       }
     }
-    controls.maxDistance = Math.exp(lerp(Math.log(8000), Math.log(1.5e6), eb));   // far enough out to see the whole Oort cloud
+    controls.maxDistance = state.nearStars ? Math.exp(lerp(Math.log(40000), Math.log(4e7), eb))   // out among the nearby stars
+      : Math.exp(lerp(Math.log(8000), Math.log(1.5e6), eb));                                        // far enough out to see the whole Oort cloud
     controls.update();
     sky.position.copy(camera.position);   // stars are effectively at infinity
     renderer.render(scene, camera);
@@ -1063,6 +1163,12 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     };
     place(sunLabel, sun.position, sun.scale.x);
     ALL.forEach(p => p.mesh.visible ? place(p.label, p.mesh.position, p.mesh.scale.x) : (p.label.style.display = "none"));
+    if (state.nearStars) nearStars.forEach(st => {
+      v3.copy(st.pos).project(camera);
+      if (v3.z > 1 || v3.z < -1 || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) { st.el.style.display = "none"; return; }
+      st.el.style.display = "";
+      st.el.style.transform = `translate(${Math.round((v3.x * 0.5 + 0.5) * w) + 7}px, ${Math.round((-v3.y * 0.5 + 0.5) * h)}px) translate(0, -50%)`;
+    });
     if (state.constellations) constLabels.forEach(c => {
       v3.copy(c.dir).multiplyScalar(SKY_R).add(camera.position).project(camera);
       if (v3.z > 1 || v3.z < -1 || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) { c.el.style.display = "none"; return; }
