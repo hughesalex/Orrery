@@ -153,7 +153,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. ISS: NORAD elements, SGP4 via satellite.js.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Each body's spin axis is drawn through it, with the brighter end at its north pole.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -184,6 +184,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt, Kuiper belt and Oort cloud">Asteroids</button>
     <button class="btn" id="issBtn" type="button" aria-pressed="false" title="Show or hide the International Space Station">ISS</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
+    <button class="btn" id="axesBtn" type="button" aria-pressed="true" title="Show or hide each body's rotation axis (bright end = north pole)">Axes</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
   </div>
 </div>
@@ -482,6 +483,23 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     if (rot) {
       p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), skyDir(rot[0], rot[1], new THREE.Vector3()));
       p.spinHours = rot[2];
+    } else if (p.sat) {
+      // The major moons rotate synchronously with their spin axis close to their orbit normal. Take the pole on the
+      // north side of the ecliptic as north, so moons on retrograde orbits (Triton, and Uranus's and Pluto's tilted
+      // systems) spin backwards about it, as their planets do.
+      const I = p.i * DEG, O = p.O * DEG, n = new THREE.Vector3(Math.sin(I) * Math.sin(O), Math.cos(I), Math.sin(I) * Math.cos(O));
+      const retro = n.y < 0;
+      if (retro) n.negate();
+      p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+      p.spinHours = p.P * 24 * (retro ? -1 : 1);
+    }
+    if (!p.noBody) {
+      // rotation axis: a line through the poles, poking out 1.6 radii each side; the north half is brighter
+      const ag = new THREE.BufferGeometry();
+      ag.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0, 0, 0, 0, 1.6, 0, 0, 0, 0, 0, -1.6, 0]), 3));
+      ag.setAttribute("color", new THREE.BufferAttribute(new Float32Array([0.91, 0.79, 0.54, 0.91, 0.79, 0.54, 0.45, 0.48, 0.55, 0.45, 0.48, 0.55]), 3));
+      p.axis = new THREE.LineSegments(ag, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 }));
+      p.mesh.add(p.axis);
     }
     if (p.name === "Earth") {
       p.clouds = new THREE.Mesh(new THREE.SphereGeometry(1.012, 64, 32),
@@ -762,6 +780,16 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   constBtn.addEventListener("click", () => setConstellations(!state.constellations));
   setConstellations(false);   // off by default
+
+  // rotation axes toggle
+  const axesBtn = document.getElementById("axesBtn");
+  function setAxes(on) {
+    state.axes = on;
+    axesBtn.setAttribute("aria-pressed", String(on));
+    ALL.forEach(p => { if (p.axis) p.axis.visible = on; });
+  }
+  axesBtn.addEventListener("click", () => setAxes(!state.axes));
+  setAxes(true);
   setMinor(false);            // off by default
   setAsteroids(false);        // off by default
   setISS(false);              // off by default

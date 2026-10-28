@@ -22,3 +22,11 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 14 | 2026-10-26 18:50 | [orrery-v14-2026-10-26-1850-iss.html](orrery-v14-2026-10-26-1850-iss.html) | International Space Station (SGP4), Earth rotation from sidereal time |
 | 15 | 2026-10-26 18:53 | [orrery-v15-2026-10-26-1853-iss-toggle.html](orrery-v15-2026-10-26-1853-iss-toggle.html) | ISS toggle, off by default |
 | 16 | 2026-10-27 12:55 | [orrery-v16-2026-10-27-1255-kuiper-oort.html](orrery-v16-2026-10-27-1255-kuiper-oort.html) | Kuiper belt and Oort cloud, shown with the Asteroids toggle |
+| 17 | 2026-10-27 18:33 | [orrery-v17-2026-10-27-1833-rotation-axes.html](orrery-v17-2026-10-27-1833-rotation-axes.html) | Rotation axis lines on planets, dwarfs and moons, with an Axes toggle |
+| 18 | 2026-10-27 18:42 | [orrery-v18-2026-10-27-1842-centre-in-clear-area.html](orrery-v18-2026-10-27-1842-centre-in-clear-area.html) | Followed body centred in the area not covered by the panels |
+| 19 | 2026-10-27 18:40 | [orrery-v19-2026-10-27-1840-clear-of-title.html](orrery-v19-2026-10-27-1840-clear-of-title.html) | Centring also keeps clear of the title and date box |
+| 20 | 2026-10-27 18:45 | [orrery-v20-2026-10-27-1845-sun-axis.html](orrery-v20-2026-10-27-1845-sun-axis.html) | Rotation axis for the Sun |
+| 21 | 2026-10-27 18:55 | [orrery-v21-2026-10-27-1855-nearby-stars.html](orrery-v21-2026-10-27-1855-nearby-stars.html) | The 50 nearest star systems at their real directions and distances, with a Nearby stars toggle |
+| 22 | 2026-10-27 19:02 | [orrery-v22-2026-10-27-1902-time-of-day.html](orrery-v22-2026-10-27-1902-time-of-day.html) | Time of day (UTC) shown next to the date |
+| 23 | 2026-10-27 19:03 | [orrery-v23-2026-10-27-1903-no-utc-tag.html](orrery-v23-2026-10-27-1903-no-utc-tag.html) | UTC tag removed from the time |
+| 24 | 2026-10-27 22:13 | [orrery-v24-2026-10-27-2213-almanac-toggle-all-sizes.html](orrery-v24-2026-10-27-2213-almanac-toggle-all-sizes.html) | Almanac show/hide button on every screen size |
