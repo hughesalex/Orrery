@@ -153,7 +153,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. ISS: NORAD elements, SGP4 via satellite.js.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -181,7 +181,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       <button class="btn" id="viewTop" type="button" aria-pressed="false">Top-down</button>
     </div>
     <button class="btn" id="minor" type="button" aria-pressed="false" title="Show or hide all moons and the dwarf planets">Moons &amp; dwarfs</button>
-    <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt">Asteroids</button>
+    <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt, Kuiper belt and Oort cloud">Asteroids</button>
     <button class="btn" id="issBtn" type="button" aria-pressed="false" title="Show or hide the International Space Station">ISS</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
@@ -342,7 +342,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#06080f");
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.00005, 60000);
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.00005, 6e6);
   camera.position.set(0, 62, 92);
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -522,43 +522,88 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const earthE1 = new THREE.Vector3(1, 0, 0).applyQuaternion(EARTH.mesh.quaternion);
   const earthE2 = new THREE.Vector3(0, 0, -1).applyQuaternion(EARTH.mesh.quaternion);
 
-  // Asteroid belt: sample asteroids on Kepler orbits between 2.1 and 3.3 AU, skipping the
-  // Kirkwood gaps at Jupiter's 3:1, 5:2 and 7:3 resonances
-  const BELT_N = 2500;
-  const belt = { el: new Float32Array(BELT_N * 9) }; // a, e, n, M0, Px, Py, Pz, Qx, Qy (Qz stored separately)
-  belt.qz = new Float32Array(BELT_N);
-  {
-    const gaps = [2.502, 2.825, 2.958];
-    for (let j = 0; j < BELT_N; j++) {
-      let a;
-      do { a = 2.1 + 1.2 * Math.pow(Math.random(), 1.3); } while (gaps.some(g => Math.abs(a - g) < 0.03));
-      const e = Math.random() * 0.2, i = Math.abs((Math.random() + Math.random() - 1) * 18) * DEG;
+  // Swarms of small bodies drawn as points: each sample is a Kepler orbit (a [AU], e, i, node, periapsis, mean anomaly)
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+  function makeSwarm(n, sample, color, size, opacity) {
+    const sw = { n, el: new Float32Array(n * 9), qz: new Float32Array(n) }; // a, e, n, M0, Px, Py, Pz, Qx, Qy (Qz separately)
+    for (let j = 0; j < n; j++) {
+      const [a, e, i] = sample();
       const O = Math.random() * Math.PI * 2, w = Math.random() * Math.PI * 2;
-      const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(O), sO = Math.sin(O), cI = Math.cos(i), sI = Math.sin(i);
-      belt.el.set([a, e, 2 * Math.PI / (365.256 * Math.pow(a, 1.5)), Math.random() * Math.PI * 2,
-        cw * cO - sw * sO * cI, cw * sO + sw * cO * cI, sw * sI, -sw * cO - cw * sO * cI, -sw * sO + cw * cO * cI], j * 9);
-      belt.qz[j] = cw * sI;
+      const cw = Math.cos(w), sw_ = Math.sin(w), cO = Math.cos(O), sO = Math.sin(O), cI = Math.cos(i), sI = Math.sin(i);
+      sw.el.set([a, e, 2 * Math.PI / (365.256 * Math.pow(a, 1.5)), Math.random() * Math.PI * 2,
+        cw * cO - sw_ * sO * cI, cw * sO + sw_ * cO * cI, sw_ * sI, -sw_ * cO - cw * sO * cI, -sw_ * sO + cw * cO * cI], j * 9);
+      sw.qz[j] = cw * sI;
     }
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(BELT_N * 3), 3));
-    belt.points = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9c8f78, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0.38, depthWrite: false }));
-    scene.add(belt.points);
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    sw.points = new THREE.Points(g, new THREE.PointsMaterial({ color, size, sizeAttenuation: false, transparent: true, opacity, depthWrite: false }));
+    scene.add(sw.points);
+    return sw;
   }
-  function updateBelt(t, k, flat) {
-    const arr = belt.points.geometry.attributes.position.array, el = belt.el;
-    for (let j = 0; j < BELT_N; j++) {
+  function updateSwarm(sw, t, k, flat) {
+    const arr = sw.points.geometry.attributes.position.array, el = sw.el;
+    for (let j = 0; j < sw.n; j++) {
       const o = j * 9, a = el[o], e = el[o + 1];
       const M = el[o + 3] + el[o + 2] * t;
       let E = M + e * Math.sin(M);
       E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
       E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
       const xp = a * (Math.cos(E) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
-      const x = el[o + 4] * xp + el[o + 7] * yp, y = el[o + 5] * xp + el[o + 8] * yp, z = el[o + 6] * xp + belt.qz[j] * yp;
+      const x = el[o + 4] * xp + el[o + 7] * yp, y = el[o + 5] * xp + el[o + 8] * yp, z = el[o + 6] * xp + sw.qz[j] * yp;
       const r = Math.hypot(x, y, z), s = U * Math.pow(r, k) / r;
       arr[j * 3] = x * s; arr[j * 3 + 1] = z * s * (1 - flat); arr[j * 3 + 2] = -y * s;
     }
-    belt.points.geometry.attributes.position.needsUpdate = true;
-    belt.points.geometry.computeBoundingSphere();
+    sw.points.geometry.attributes.position.needsUpdate = true;
+    sw.points.geometry.computeBoundingSphere();
+  }
+
+  // Asteroid belt: 2.1 to 3.3 AU, skipping the Kirkwood gaps at Jupiter's 3:1, 5:2 and 7:3 resonances
+  const belt = makeSwarm(2500, () => {
+    let a;
+    do { a = 2.1 + 1.2 * Math.pow(Math.random(), 1.3); } while ([2.502, 2.825, 2.958].some(g => Math.abs(a - g) < 0.03));
+    return [a, Math.random() * 0.2, Math.abs((Math.random() + Math.random() - 1) * 18) * DEG];
+  }, 0x9c8f78, 1.6, 0.38);
+
+  // Kuiper belt: a thin "cold" classical disc at 42-47 AU, a thicker "hot" classical population, plutinos in
+  // Neptune's 3:2 resonance at 39.4 AU, twotinos at the 2:1 (47.8 AU) and a sprinkling of the scattered disc
+  const kuiper = makeSwarm(3200, () => {
+    const u = Math.random();
+    if (u < 0.42) return [42 + 5 * Math.random(), 0.08 * Math.random(), Math.abs(gauss()) * 2 * DEG];        // cold classical
+    if (u < 0.68) return [40 + 8 * Math.random(), 0.16 * Math.random(), Math.abs(gauss()) * 13 * DEG];       // hot classical
+    if (u < 0.88) return [39.2 + 0.4 * Math.random(), 0.1 + 0.2 * Math.random(), Math.abs(gauss()) * 10 * DEG]; // plutinos
+    if (u < 0.93) return [47.6 + 0.4 * Math.random(), 0.1 + 0.25 * Math.random(), Math.abs(gauss()) * 8 * DEG];  // twotinos
+    const a = 50 + 70 * Math.pow(Math.random(), 1.6), q = 33 + 7 * Math.random();                           // scattered disc
+    return [a, 1 - q / a, Math.abs(gauss()) * 16 * DEG];
+  }, 0x8ea2bd, 1.5, 0.34);
+
+  // Oort cloud: a hypothetical shell of comets from about 2,000 to 100,000 AU. Never observed directly, so this is
+  // illustrative: number density falling as r^-3.5, the inner (Hills) cloud flattened towards the ecliptic and the
+  // outer cloud spherical. Orbital periods are millions of years, so the points stay put.
+  const OORT_N = 6000, oort = { au: new Float32Array(OORT_N * 3) };
+  {
+    const R0 = 2000, R1 = 100000;
+    for (let j = 0; j < OORT_N; j++) {
+      // dN/dr ~ r^-1.5: inverse-CDF sample
+      const r = Math.pow(Math.pow(R0, -0.5) - Math.random() * (Math.pow(R0, -0.5) - Math.pow(R1, -0.5)), -2);
+      const flatten = r < 20000 ? 0.35 + 0.65 * (r - R0) / (20000 - R0) : 1;
+      const lon = Math.random() * Math.PI * 2, sinLat = (2 * Math.random() - 1) * flatten;
+      const cl = Math.sqrt(1 - sinLat * sinLat);
+      oort.au.set([r * cl * Math.cos(lon), r * cl * Math.sin(lon), r * sinLat], j * 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(OORT_N * 3), 3));
+    oort.points = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x7d93b4, size: 1.4, sizeAttenuation: false, transparent: true, opacity: 0.26, depthWrite: false }));
+    oort.points.frustumCulled = false;
+    scene.add(oort.points);
+  }
+  function updateOort(k, flat) {
+    const arr = oort.points.geometry.attributes.position.array, au = oort.au;
+    for (let j = 0; j < OORT_N; j++) {
+      const x = au[j * 3], y = au[j * 3 + 1], z = au[j * 3 + 2];
+      const r = Math.hypot(x, y, z), s = U * Math.pow(r, k) / r;
+      arr[j * 3] = x * s; arr[j * 3 + 1] = z * s * (1 - flat); arr[j * 3 + 2] = -y * s;
+    }
+    oort.points.geometry.attributes.position.needsUpdate = true;
   }
 
   // ---------- labels ----------
@@ -691,8 +736,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   function setAsteroids(on) {
     state.asteroids = on;
     astBtn.setAttribute("aria-pressed", String(on));
-    belt.points.visible = on;
+    belt.points.visible = kuiper.points.visible = oort.points.visible = on;
     beltNote.hidden = !on;
+    oort.stale = true;
   }
   astBtn.addEventListener("click", () => setAsteroids(!state.asteroids));
 
@@ -919,7 +965,11 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       }
     }
 
-    if (state.asteroids) updateBelt(state.t, k, flat);
+    if (state.asteroids) {
+      updateSwarm(belt, state.t, k, flat);
+      updateSwarm(kuiper, state.t, k, flat);
+      if (remap || oort.stale) { updateOort(k, flat); oort.stale = false; }
+    }
     lastBlend = state.blend; lastFlat = state.flat;
 
     // camera: follow a body by moving the orbit target with it
@@ -941,6 +991,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
         cam = null;
       }
     }
+    controls.maxDistance = Math.exp(lerp(Math.log(8000), Math.log(1.5e6), eb));   // far enough out to see the whole Oort cloud
     controls.update();
     sky.position.copy(camera.position);   // stars are effectively at infinity
     renderer.render(scene, camera);
