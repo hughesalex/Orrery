@@ -54,8 +54,8 @@ body {
   font-size: 22px; letter-spacing: 0.08em; color: var(--brass-hi); text-wrap: balance;
 }
 #when { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* fixed width for the widest usual date ("30 Sept 2026", monospaced) so the time never shifts */
-#date { display: inline-block; min-width: 12ch; }
+/* monospaced, day padded with a space and three-letter months, so the date and time never shift */
+#date { display: inline-block; min-width: 11ch; white-space: pre; }
 #time { margin-left: 1.2em; }
 #elapsed { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #scaleNote { font-size: 12px; color: var(--muted); line-height: 1.4; }
@@ -1005,7 +1005,13 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 
   // ---------- frame loop ----------
   const dateEl = document.getElementById("date"), elapsedEl = document.getElementById("elapsed");
-  const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const yearFmt = new Intl.DateTimeFormat("en-GB", { year: "numeric", era: "short", timeZone: "UTC" });
+  const fmtDate = d => {
+    const y = d.getUTCFullYear();
+    const year = y > 0 && y < 10000 ? String(y) : yearFmt.format(d);   // e.g. "45 BC" outside the common era
+    return `${String(d.getUTCDate()).padStart(2, " ")} ${MONTHS[d.getUTCMonth()]} ${year}`;
+  };
   const timeEl = document.getElementById("time"), timeText = document.createTextNode("");
   timeEl.append(timeText);
   let last = performance.now(), lastBlend = -1, lastFlat = -1, lastUi = 0;
@@ -1195,7 +1201,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       lastUi = now;
       const ms = J2000_MS + state.t * DAY_MS;
       const okDate = Number.isFinite(ms) && Math.abs(ms) < 8.64e15, d = new Date(ms);
-      dateEl.textContent = okDate ? dateFmt.format(d) : "—";
+      dateEl.textContent = okDate ? fmtDate(d) : "—";
       timeText.data = okDate ? `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}` : "";
       timeEl.hidden = !okDate;
       const yrs = (state.t - state.tStart) / 365.256;
