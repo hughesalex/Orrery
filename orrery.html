@@ -1,0 +1,530 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body><title>Brass Orrery</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed 3D sky, instrument plate top-left, almanac panel right, brass control rail along the bottom */
+:root {
+  --sky: #06080f;
+  --plate: rgba(14, 18, 30, 0.82);
+  --line: rgba(201, 164, 92, 0.28);
+  --fg: #e8e2d2;
+  --muted: #9a968a;
+  --brass: #c9a45c;
+  --brass-hi: #e9c98a;
+  --font-display: "Marcellus", "Trajan Pro", Georgia, serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--sky); color: var(--fg);
+  font-family: var(--font-body); font-size: 14px;
+  overflow: hidden; position: relative;
+}
+#scene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+#labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.label {
+  position: absolute; left: 0; top: 0; white-space: nowrap;
+  font-family: var(--font-data); font-size: 11px; letter-spacing: 0.04em;
+  color: var(--fg); opacity: 0.85; text-shadow: 0 0 4px var(--sky), 0 0 2px var(--sky);
+  will-change: transform;
+}
+.label.sun { color: var(--brass-hi); }
+
+.plate {
+  background: var(--plate); border: 1px solid var(--line); border-radius: 6px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+
+#title {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: max(16px, env(safe-area-inset-left, 0px));
+  padding: 12px 16px; display: grid; gap: 4px; max-width: min(320px, calc(100% - 32px));
+}
+#title h1 {
+  margin: 0; font-family: var(--font-display); font-weight: 400;
+  font-size: 22px; letter-spacing: 0.08em; color: var(--brass-hi); text-wrap: balance;
+}
+#date { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; }
+#elapsed { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#scaleNote { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+#almanac {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  right: max(16px, env(safe-area-inset-right, 0px));
+  width: 300px; max-height: calc(100% - 150px); overflow-y: auto;
+  padding: 10px 0 6px;
+}
+#almanac header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0 14px 8px; border-bottom: 1px solid var(--line);
+}
+#almanac h2 {
+  margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 15px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass);
+}
+#almanac header span { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+#rows { display: grid; }
+.row {
+  display: grid; grid-template-columns: 10px 1fr auto; column-gap: 10px; row-gap: 4px;
+  align-items: center; padding: 7px 14px; cursor: pointer;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%;
+}
+.row:hover { background: rgba(201, 164, 92, 0.08); }
+.row:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
+.row.active { background: rgba(201, 164, 92, 0.16); }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.name { font-weight: 500; }
+.stats { font-family: var(--font-data); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.laps { grid-column: 2 / 4; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+.bar { height: 3px; background: rgba(232, 226, 210, 0.1); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--brass); }
+.count { font-family: var(--font-data); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 72px; text-align: right; }
+#almanac footer { padding: 8px 14px 4px; font-size: 11px; color: var(--muted); line-height: 1.45; border-top: 1px solid var(--line); }
+
+#controls {
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  width: min(760px, calc(100% - 32px));
+  padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center;
+}
+.group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.speed { flex: 1 1 260px; min-width: 0; }
+button.btn {
+  font: 500 12px var(--font-body); letter-spacing: 0.04em; color: var(--fg);
+  background: rgba(232, 226, 210, 0.06); border: 1px solid var(--line); border-radius: 4px;
+  padding: 7px 10px; cursor: pointer; min-height: 32px;
+}
+button.btn:hover { border-color: var(--brass); }
+button.btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+button.btn[aria-pressed="true"] { background: var(--brass); color: var(--sky); border-color: var(--brass); }
+button.btn.primary { min-width: 76px; }
+#speedLabel { font-family: var(--font-data); font-size: 12px; min-width: 104px; font-variant-numeric: tabular-nums; color: var(--brass-hi); }
+input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--brass); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button.btn { border: 0; border-radius: 0; }
+.seg button.btn + button.btn { border-left: 1px solid var(--line); }
+.caption { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+#webglError[hidden] { display: none; }
+#webglError { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); text-align: center; color: var(--muted); }
+
+#toggleAlmanac { display: none; }
+@media (max-width: 720px) {
+  #title { padding: 8px 12px; }
+  #title h1 { font-size: 17px; }
+  #scaleNote { display: none; }
+  #toggleAlmanac { display: inline-block; }
+  #almanac {
+    top: auto; right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px));
+    width: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 150px); max-height: 46%;
+  }
+  #controls { padding: 8px 10px; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<canvas id="scene" aria-label="3D view of the solar system. Drag to rotate, scroll or pinch to zoom."></canvas>
+<div id="labels"></div>
+
+<section id="title" class="plate">
+  <h1>Brass Orrery</h1>
+  <div id="date">—</div>
+  <div id="elapsed">0.00 Earth years elapsed</div>
+  <div id="scaleNote"></div>
+</section>
+
+<aside id="almanac" class="plate" aria-label="Planet almanac">
+  <header><h2>Almanac</h2><span>Orbits completed</span></header>
+  <div id="rows"></div>
+  <footer>Pick a planet to follow it with the camera. Drag to rotate, scroll or pinch to zoom.</footer>
+</aside>
+
+<div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
+  <div class="group">
+    <button class="btn primary" id="play" type="button">Pause</button>
+    <button class="btn" id="reverse" type="button" aria-pressed="false" title="Run time backwards">Reverse</button>
+    <button class="btn" id="today" type="button" title="Jump to today's planet positions">Today</button>
+  </div>
+  <div class="group speed">
+    <label class="caption" for="speed">Speed</label>
+    <input type="range" id="speed" min="0" max="1000" step="1" value="500">
+    <span id="speedLabel">—</span>
+  </div>
+  <div class="group">
+    <span class="caption">Scale</span>
+    <div class="seg" role="group" aria-label="Distance scale">
+      <button class="btn" id="scaleCompressed" type="button" aria-pressed="true">Compressed</button>
+      <button class="btn" id="scaleTrue" type="button" aria-pressed="false">True</button>
+    </div>
+    <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true">Almanac</button>
+  </div>
+</div>
+
+<div id="webglError" hidden>This orrery needs WebGL, which this browser or device has turned off.</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+  const DEG = Math.PI / 180;
+  const U = 12;                    // scene units per AU (Earth sits at 12 in both scales)
+  const AU_KM = 149597870.7;
+  const J2000_MS = Date.UTC(2000, 0, 1, 12);
+  const DAY_MS = 86400000;
+
+  // J2000 mean orbital elements (JPL, Standish): a [AU], e, i, mean longitude L, longitude of perihelion w, ascending node O [deg]; sidereal period P [days]; equatorial radius R [km]
+  const PLANETS = [
+    { name: "Mercury", a: 0.38709927, e: 0.20563593, i: 7.00497902, L: 252.25032350, w: 77.45779628,  O: 48.33076593,  P: 87.969,   R: 2439.7, color: "#a9a39a" },
+    { name: "Venus",   a: 0.72333566, e: 0.00677672, i: 3.39467605, L: 181.97909950, w: 131.60246718, O: 76.67984255,  P: 224.701,  R: 6051.8, color: "#e3c48f" },
+    { name: "Earth",   a: 1.00000261, e: 0.01671123, i: 0.0,        L: 100.46457166, w: 102.93768193, O: 0.0,          P: 365.256,  R: 6371.0, color: "#5d93d6" },
+    { name: "Mars",    a: 1.52371034, e: 0.09339410, i: 1.84969142, L: -4.55343205,  w: -23.94362959, O: 49.55953891,  P: 686.980,  R: 3389.5, color: "#d0694a" },
+    { name: "Jupiter", a: 5.20288700, e: 0.04838624, i: 1.30439695, L: 34.39644051,  w: 14.72847983,  O: 100.47390909, P: 4332.59,  R: 69911,  color: "#d9b38c" },
+    { name: "Saturn",  a: 9.53667594, e: 0.05386179, i: 2.48599187, L: 49.95424423,  w: 92.59887831,  O: 113.66242448, P: 10759.22, R: 58232,  color: "#e6d29c", ring: true },
+    { name: "Uranus",  a: 19.18916464,e: 0.04725744, i: 0.77263783, L: 313.23810451, w: 170.95427630, O: 74.01692503,  P: 30688.5,  R: 25362,  color: "#9fd8df" },
+    { name: "Neptune", a: 30.06992276,e: 0.00859048, i: 1.77004347, L: -55.12002969, w: 44.96476227,  O: 131.78422574, P: 60182,    R: 24622,  color: "#5a74d8" },
+  ];
+  const SUN_R_KM = 695700;
+
+  // Sizes: compressed view exaggerates bodies so they can be seen; true view uses real radii
+  const compSize = R => 0.7 * Math.pow(R / 6371, 0.35);
+  const trueSize = R => R / AU_KM * U;
+  const SUN_COMP = 3.0;
+
+  // ---------- orbital mechanics ----------
+  function rotate(p, xp, yp, out) {
+    const w = (p.w - p.O) * DEG, O = p.O * DEG, I = p.i * DEG;
+    const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(O), sO = Math.sin(O), cI = Math.cos(I), sI = Math.sin(I);
+    out[0] = (cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp;
+    out[1] = (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp;
+    out[2] = (sw * sI) * xp + (cw * sI) * yp;
+    return out;
+  }
+  function helio(p, t, out) {          // heliocentric ecliptic position [AU] at t days from J2000
+    const n = 360 / p.P;
+    const M = ((((p.L - p.w + n * t) % 360) + 360) % 360) * DEG;
+    let E = M + p.e * Math.sin(M);
+    for (let k = 0; k < 6; k++) E -= (E - p.e * Math.sin(E) - M) / (1 - p.e * Math.cos(E));
+    const xp = p.a * (Math.cos(E) - p.e);
+    const yp = p.a * Math.sqrt(1 - p.e * p.e) * Math.sin(E);
+    return rotate(p, xp, yp, out);
+  }
+  // Map AU (ecliptic x,y,z) to scene coords. Distance from the Sun is r^k: k = 0.5 compressed, 1 true.
+  function toScene(v, k, target, offset = 0) {
+    const r = Math.hypot(v[0], v[1], v[2]) || 1e-9;
+    const s = U * Math.pow(r, k) / r;
+    return target.set(v[0] * s + offset, v[2] * s, -v[1] * s);
+  }
+
+  // ---------- renderer ----------
+  const canvas = document.getElementById("scene");
+  let renderer;
+  try {
+    if (typeof THREE === "undefined" || !THREE.OrbitControls) throw new Error("three.js did not load");
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  } catch (err) {
+    document.getElementById("webglError").hidden = false;
+    return;
+  }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color("#06080f");
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.0005, 60000);
+  camera.position.set(0, 62, 92);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 0.002;
+  controls.maxDistance = 4000;
+  controls.enablePan = false;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.16));
+  const sunLight = new THREE.PointLight(0xfff2dc, 1.5, 0, 0);
+  scene.add(sunLight);
+
+  // starfield
+  {
+    const N = 4000, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+    for (let n = 0; n < N; n++) {
+      const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, s = Math.sqrt(1 - u * u), R = 20000;
+      pos.set([R * s * Math.cos(th), R * u, R * s * Math.sin(th)], n * 3);
+      const b = 0.35 + Math.random() * 0.65, warm = Math.random() * 0.15;
+      col.set([b, b - warm * 0.4, b - warm], n * 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.4, sizeAttenuation: false, vertexColors: true, depthWrite: false })));
+  }
+
+  function radialTexture(stops) {
+    const c = document.createElement("canvas"); c.width = c.height = 128;
+    const x = c.getContext("2d"), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    stops.forEach(([o, s]) => gr.addColorStop(o, s));
+    x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  }
+
+  // Sun
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.MeshBasicMaterial({ color: 0xffd27a }));
+  scene.add(sun);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: radialTexture([[0, "rgba(255,214,140,0.9)"], [0.25, "rgba(255,180,90,0.35)"], [1, "rgba(255,150,60,0)"]]),
+    blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
+  }));
+  scene.add(glow);
+  const dotTex = radialTexture([[0, "rgba(255,255,255,1)"], [0.55, "rgba(255,255,255,1)"], [0.75, "rgba(255,255,255,0)"]]);
+
+  // Planets
+  const ORBIT_N = 256;
+  const tmp = [0, 0, 0];
+  const v3 = new THREE.Vector3();
+  PLANETS.forEach(p => {
+    p.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), new THREE.MeshLambertMaterial({ color: p.color }));
+    scene.add(p.mesh);
+    if (p.ring) {
+      const rg = new THREE.RingGeometry(1.25, 2.3, 96);
+      const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0xd9c79a, side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
+      ring.rotation.x = -Math.PI / 2 + 26.7 * DEG;
+      p.mesh.add(ring);
+    }
+    // marker dot that keeps a planet visible when it is too small to see at true scale
+    const mg = new THREE.BufferGeometry();
+    mg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(3), 3));
+    p.marker = new THREE.Points(mg, new THREE.PointsMaterial({ color: p.color, size: 7, sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false, opacity: 0 }));
+    scene.add(p.marker);
+    // orbit path sampled in AU once, remapped to the scene when the scale changes
+    p.orbitAU = new Float32Array((ORBIT_N + 1) * 3);
+    for (let k = 0; k <= ORBIT_N; k++) {
+      const E = (k / ORBIT_N) * Math.PI * 2;
+      rotate(p, p.a * (Math.cos(E) - p.e), p.a * Math.sqrt(1 - p.e * p.e) * Math.sin(E), tmp);
+      p.orbitAU.set(tmp, k * 3);
+    }
+    const og = new THREE.BufferGeometry();
+    og.setAttribute("position", new THREE.BufferAttribute(new Float32Array((ORBIT_N + 1) * 3), 3));
+    p.orbit = new THREE.Line(og, new THREE.LineBasicMaterial({ color: p.color, transparent: true, opacity: 0.35 }));
+    scene.add(p.orbit);
+  });
+
+  // ---------- labels ----------
+  const labelLayer = document.getElementById("labels");
+  function makeLabel(text, cls) {
+    const el = document.createElement("div");
+    el.className = "label" + (cls ? " " + cls : "");
+    el.textContent = text;
+    labelLayer.appendChild(el);
+    return el;
+  }
+  const sunLabel = makeLabel("Sun", "sun");
+  PLANETS.forEach(p => { p.label = makeLabel(p.name); });
+
+  // ---------- almanac ----------
+  const rowsEl = document.getElementById("rows");
+  const fmtPeriod = d => d < 1000 ? `${d.toFixed(0)} days` : `${(d / 365.256).toFixed(1)} yrs`;
+  PLANETS.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "row";
+    b.innerHTML = `<span class="dot" style="background:${p.color}"></span>
+      <span class="name">${p.name}</span>
+      <span class="stats">${p.a.toFixed(2)} AU · ${fmtPeriod(p.P)}</span>
+      <span class="laps"><span class="bar"><i></i></span><span class="count">0.00</span></span>`;
+    b.setAttribute("aria-label", `Follow ${p.name}`);
+    b.addEventListener("click", () => follow(follow.target === p ? null : p));
+    p.row = b; p.bar = b.querySelector(".bar i"); p.count = b.querySelector(".count");
+    rowsEl.appendChild(b);
+  });
+
+  // ---------- state ----------
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nowDays = () => (Date.now() - J2000_MS) / DAY_MS;
+  const state = {
+    t: nowDays(), tStart: nowDays(),
+    paused: reduceMotion, dir: 1,
+    speed: 30,                 // days per second
+    blend: 0, blendTarget: 0,  // 0 compressed, 1 true
+  };
+  const SPEED_MIN = 0.1, SPEED_MAX = 18262; // 2.4 hours/s to 50 years/s
+  const speedInput = document.getElementById("speed");
+  const sliderToSpeed = v => SPEED_MIN * Math.pow(SPEED_MAX / SPEED_MIN, v / 1000);
+  const speedToSlider = s => Math.round(1000 * Math.log(s / SPEED_MIN) / Math.log(SPEED_MAX / SPEED_MIN));
+  function fmtSpeed(d) {
+    if (d < 1) return `${(d * 24).toFixed(1)} hours / s`;
+    if (d < 7) return `${d.toFixed(1)} days / s`;
+    if (d < 30.44) return `${(d / 7).toFixed(1)} weeks / s`;
+    if (d < 365.25) return `${(d / 30.44).toFixed(1)} months / s`;
+    return `${(d / 365.25).toFixed(1)} years / s`;
+  }
+  function setSpeed(s) {
+    state.speed = s;
+    speedInput.value = speedToSlider(s);
+    document.getElementById("speedLabel").textContent = fmtSpeed(s);
+  }
+  speedInput.addEventListener("input", () => setSpeed(sliderToSpeed(+speedInput.value)));
+  setSpeed(state.speed);
+
+  const playBtn = document.getElementById("play");
+  function setPaused(v) { state.paused = v; playBtn.textContent = v ? "Play" : "Pause"; }
+  playBtn.addEventListener("click", () => setPaused(!state.paused));
+  setPaused(state.paused);
+  const revBtn = document.getElementById("reverse");
+  revBtn.addEventListener("click", () => { state.dir *= -1; revBtn.setAttribute("aria-pressed", String(state.dir < 0)); });
+  document.getElementById("today").addEventListener("click", () => { state.t = nowDays(); state.tStart = state.t; });
+
+  // scale toggle
+  const scaleNote = document.getElementById("scaleNote");
+  const bComp = document.getElementById("scaleCompressed"), bTrue = document.getElementById("scaleTrue");
+  function setScale(isTrue) {
+    state.blendTarget = isTrue ? 1 : 0;
+    bComp.setAttribute("aria-pressed", String(!isTrue));
+    bTrue.setAttribute("aria-pressed", String(isTrue));
+    scaleNote.textContent = isTrue
+      ? "True scale. Distances are proportional to real distances. Planets and Sun are drawn at true size, so most appear as dots."
+      : "Compressed scale. Distance from the Sun is shown as the square root of the real distance, and bodies are enlarged.";
+    if (reduceMotion) state.blend = state.blendTarget;
+    flyTo(fitDistance(state.blendTarget));
+  }
+  bComp.addEventListener("click", () => setScale(false));
+  bTrue.addEventListener("click", () => setScale(true));
+
+  // almanac toggle (phone)
+  const almanac = document.getElementById("almanac"), almBtn = document.getElementById("toggleAlmanac");
+  if (window.matchMedia("(max-width: 720px)").matches) { almanac.hidden = true; almBtn.setAttribute("aria-pressed", "false"); }
+  almBtn.addEventListener("click", () => { almanac.hidden = !almanac.hidden; almBtn.setAttribute("aria-pressed", String(!almanac.hidden)); });
+
+  // keyboard
+  window.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input, button")) return;
+    if (e.code === "Space") { e.preventDefault(); setPaused(!state.paused); }
+    if (e.key === "]" || e.key === "+") setSpeed(Math.min(SPEED_MAX, state.speed * 2));
+    if (e.key === "[" || e.key === "-") setSpeed(Math.max(SPEED_MIN, state.speed / 2));
+  });
+
+  // ---------- camera ----------
+  const lerp = (a, b, x) => a + (b - a) * x;
+  const sizeAt = (comp, tru, k) => Math.exp(lerp(Math.log(comp), Math.log(tru), k));
+  function fitDistance(k) {
+    if (follow.target) return Math.max(sizeAt(compSize(follow.target.R), trueSize(follow.target.R), k) * 14, 0.004);
+    return lerp(112, 760, k);
+  }
+  let cam = null; // {from, to, t}
+  function flyTo(dist) { cam = { from: camera.position.distanceTo(controls.target), to: dist, t: reduceMotion ? 1 : 0 }; }
+  function follow(p) {
+    follow.target = p;
+    PLANETS.forEach(q => q.row.classList.toggle("active", q === p));
+    if (!p) { controls.target.set(0, 0, 0); }
+    flyTo(fitDistance(state.blendTarget));
+  }
+  follow.target = null;
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // ---------- frame loop ----------
+  const dateEl = document.getElementById("date"), elapsedEl = document.getElementById("elapsed");
+  const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  let last = performance.now(), lastBlend = -1, lastUi = 0;
+  const prevTarget = new THREE.Vector3();
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (!state.paused) state.t += dt * state.speed * state.dir;
+
+    // ease the scale blend
+    if (state.blend !== state.blendTarget) {
+      const step = dt / 1.6;
+      state.blend = state.blend < state.blendTarget ? Math.min(state.blendTarget, state.blend + step) : Math.max(state.blendTarget, state.blend - step);
+    }
+    const b = state.blend;
+    const eb = b * b * (3 - 2 * b);          // smoothstep
+    const k = lerp(0.5, 1, eb);
+
+    sun.scale.setScalar(sizeAt(SUN_COMP, trueSize(SUN_R_KM), eb));
+    glow.scale.setScalar(sun.scale.x * lerp(7, 60, eb));
+    glow.material.opacity = lerp(1, 0.8, eb);
+
+    PLANETS.forEach(p => {
+      helio(p, state.t, tmp);
+      toScene(tmp, k, p.mesh.position);
+      p.mesh.scale.setScalar(sizeAt(compSize(p.R), trueSize(p.R), eb));
+      p.marker.geometry.attributes.position.array.set([p.mesh.position.x, p.mesh.position.y, p.mesh.position.z]);
+      p.marker.geometry.attributes.position.needsUpdate = true;
+      p.marker.material.opacity = eb;
+      if (b !== lastBlend) {
+        const arr = p.orbit.geometry.attributes.position.array;
+        for (let i = 0; i <= ORBIT_N; i++) {
+          tmp[0] = p.orbitAU[i * 3]; tmp[1] = p.orbitAU[i * 3 + 1]; tmp[2] = p.orbitAU[i * 3 + 2];
+          toScene(tmp, k, v3);
+          arr[i * 3] = v3.x; arr[i * 3 + 1] = v3.y; arr[i * 3 + 2] = v3.z;
+        }
+        p.orbit.geometry.attributes.position.needsUpdate = true;
+        p.orbit.geometry.computeBoundingSphere();
+      }
+    });
+    lastBlend = b;
+
+    // camera: follow a planet by moving the orbit target with it
+    if (follow.target) {
+      prevTarget.copy(controls.target);
+      controls.target.copy(follow.target.mesh.position);
+      camera.position.add(v3.subVectors(controls.target, prevTarget));
+    }
+    if (cam) {
+      cam.t = Math.min(1, cam.t + dt / 1.6);
+      const e = cam.t * cam.t * (3 - 2 * cam.t);
+      const d = Math.exp(lerp(Math.log(cam.from), Math.log(cam.to), e));
+      v3.subVectors(camera.position, controls.target).setLength(d);
+      camera.position.copy(controls.target).add(v3);
+      if (cam.t >= 1) cam = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+
+    // labels
+    const w = window.innerWidth, h = window.innerHeight;
+    const place = (el, pos, radius) => {
+      v3.copy(pos).project(camera);
+      if (v3.z > 1 || v3.z < -1) { el.style.display = "none"; return; }
+      el.style.display = "";
+      const camDist = camera.position.distanceTo(pos);
+      const px = radius / (camDist * Math.tan(camera.fov * DEG / 2)) * h / 2;
+      const x = (v3.x * 0.5 + 0.5) * w, y = (-v3.y * 0.5 + 0.5) * h;
+      el.style.transform = `translate(${Math.round(x + Math.max(px, 4) + 4)}px, ${Math.round(y - 7)}px)`;
+    };
+    place(sunLabel, sun.position, sun.scale.x);
+    PLANETS.forEach(p => place(p.label, p.mesh.position, p.mesh.scale.x));
+
+    // text readouts, ~8 times a second
+    if (now - lastUi > 120) {
+      lastUi = now;
+      const ms = J2000_MS + state.t * DAY_MS;
+      dateEl.textContent = Number.isFinite(ms) && Math.abs(ms) < 8.64e15 ? dateFmt.format(new Date(ms)) : "—";
+      const yrs = (state.t - state.tStart) / 365.256;
+      elapsedEl.textContent = `${yrs >= 0 ? "" : "−"}${Math.abs(yrs).toFixed(2)} Earth years elapsed`;
+      PLANETS.forEach(p => {
+        const laps = (state.t - state.tStart) / p.P;
+        const lon = ((((p.L + 360 / p.P * state.t) % 360) + 360) % 360) / 360;
+        p.bar.style.width = (lon * 100).toFixed(1) + "%";
+        p.count.textContent = (laps < 0 ? "−" : "") + Math.abs(laps).toFixed(2);
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+  setScale(false);
+  cam = null;
+  requestAnimationFrame(frame);
+})();
+</script>
+</body></html>
