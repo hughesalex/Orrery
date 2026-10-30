@@ -32,3 +32,4 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 24 | 2026-10-27 22:13 | [orrery-v24-2026-10-27-2213-almanac-toggle-all-sizes.html](orrery-v24-2026-10-27-2213-almanac-toggle-all-sizes.html) | Almanac show/hide button on every screen size |
 | 25 | 2026-10-28 20:30 | [orrery-v25-2026-10-28-2030-no-heading-steady-time.html](orrery-v25-2026-10-28-2030-no-heading-steady-time.html) | Title removed from the date panel; time stays in a fixed position |
 | 26 | 2026-10-28 20:34 | [orrery-v26-2026-10-28-2034-aligned-date.html](orrery-v26-2026-10-28-2034-aligned-date.html) | Single-digit days padded with a space and three-letter months, so the date never shifts |
+| 27 | 2026-10-30 12:00 | [orrery-v27-2026-10-30-1200-spacecraft.html](orrery-v27-2026-10-30-1200-spacecraft.html) | Spacecraft paths (Voyagers, Pioneers, New Horizons, Cassini, Juno, Parker Solar Probe) from JPL Horizons, with a Spacecraft toggle |
