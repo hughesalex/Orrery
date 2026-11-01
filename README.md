@@ -35,3 +35,4 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 27 | 2026-10-30 12:00 | [orrery-v27-2026-10-30-1200-spacecraft.html](orrery-v27-2026-10-30-1200-spacecraft.html) | Spacecraft paths (Voyagers, Pioneers, New Horizons, Cassini, Juno, Parker Solar Probe) from JPL Horizons, with a Spacecraft toggle |
 | 28 | 2026-10-30 12:09 | [orrery-v28-2026-10-30-1209-moons-dwarfs-split.html](orrery-v28-2026-10-30-1209-moons-dwarfs-split.html) | Separate Moons and Dwarfs toggles |
 | 29 | 2026-11-01 20:50 | [orrery-v29-2026-11-01-2050-follow-spacecraft.html](orrery-v29-2026-11-01-2050-follow-spacecraft.html) | Click a spacecraft (dot or label) to follow it |
+| 30 | 2026-11-01 20:56 | [orrery-v30-2026-11-01-2056-axes-off.html](orrery-v30-2026-11-01-2056-axes-off.html) | Rotation axes off by default |

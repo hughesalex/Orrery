@@ -189,7 +189,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="craftBtn" type="button" aria-pressed="false" title="Show or hide the paths of Voyager, Pioneer, New Horizons, Cassini, Juno and Parker Solar Probe">Spacecraft</button>
     <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
-    <button class="btn" id="axesBtn" type="button" aria-pressed="true" title="Show or hide each body's rotation axis (bright end = north pole)">Axes</button>
+    <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide each body's rotation axis (bright end = north pole)">Axes</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true" title="Show or hide the almanac panel">Almanac</button>
   </div>
 </div>
@@ -989,7 +989,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     sunAxis.visible = on;
   }
   axesBtn.addEventListener("click", () => setAxes(!state.axes));
-  setAxes(true);
+  setAxes(false);             // off by default
   applyMinor();               // moons and dwarf planets off by default
   setAsteroids(false);        // off by default
   setISS(false);              // off by default
