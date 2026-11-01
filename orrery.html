@@ -84,9 +84,12 @@ body {
 .row {
   display: grid; grid-template-columns: 10px 1fr auto; column-gap: 10px; row-gap: 4px;
   align-items: center; padding: 6px 14px; cursor: pointer;
-  border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%;
+  border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%; box-sizing: border-box;
 }
 .row.sub { padding-left: 34px; }
+.row .launch { font-family: var(--font-data); font-size: 11px; color: var(--muted); }
+.row .jump { font: 500 11px var(--font-body); color: var(--fg); background: rgba(232, 226, 210, 0.06); border: 1px solid var(--line); border-radius: 3px; padding: 2px 7px; cursor: pointer; }
+.row .jump:hover { border-color: var(--brass); }
 .row.sub .dot { width: 7px; height: 7px; justify-self: center; }
 .row:hover { background: rgba(201, 164, 92, 0.08); }
 .row:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
@@ -830,6 +833,35 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const dwarfHead = addHead("Dwarf planets");
   DWARFS.forEach(p => { addRow(p); addMoons(p); });
 
+  // Spacecraft: launch date, distance from the Sun at the simulation date, and a button that sets the clock to launch
+  const CRAFT_INFO = {
+    "Voyager 1": ["5 Sep 1977"], "Voyager 2": ["20 Aug 1977"], "Pioneer 10": ["3 Mar 1972"], "Pioneer 11": ["6 Apr 1973"],
+    "New Horizons": ["19 Jan 2006"], "Cassini": ["15 Oct 1997", "ended Sep 2017"],
+    "Juno": ["5 Aug 2011", "data to Sep 2025"], "Parker Solar Probe": ["12 Aug 2018", "data to Jun 2025"],
+  };
+  const craftHead = addHead("Spacecraft");
+  function jumpToLaunch(c) {
+    state.t = state.tStart = c.t0;     // the trajectory starts the day after launch
+    follow(c);
+  }
+  CRAFT.forEach(c => {
+    const [launch, end] = CRAFT_INFO[c.name] || ["—"];
+    c.endNote = end || "data to 2029";
+    const r = document.createElement("div");
+    r.className = "row"; r.tabIndex = 0; r.setAttribute("role", "button");
+    r.setAttribute("aria-label", `Follow ${c.name}`);
+    r.innerHTML = `<span class="dot" style="background:${c.color}"></span>
+      <span class="name">${c.name}</span>
+      <span class="stats">—</span>
+      <span class="laps"><span class="launch">Launched ${launch}</span><button class="jump" type="button" title="Set the clock to ${c.name}'s launch and follow it">Go to launch</button></span>`;
+    const act = () => (c.live ? follow(follow.target === c ? null : c) : jumpToLaunch(c));
+    r.addEventListener("click", e => { if (!e.target.closest(".jump")) act(); });
+    r.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target === r) { e.preventDefault(); act(); } });
+    r.querySelector(".jump").addEventListener("click", () => jumpToLaunch(c));
+    c.row = r; c.stats = r.querySelector(".stats");
+    rowsEl.appendChild(r);
+  });
+
   // ---------- state ----------
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const nowDays = () => (Date.now() - J2000_MS) / DAY_MS;
@@ -963,6 +995,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       if (!on) { c.flown.visible = c.marker.visible = c.mesh.visible = c.live = false; c.el.style.display = "none"; }
     });
     if (!on && follow.target && follow.target.craft) follow(null);
+    craftHead.hidden = !on;
+    CRAFT.forEach(c => { c.row.hidden = !on; });
     CRAFT.stale = true;
   }
   craftBtn.addEventListener("click", () => setCraft(!state.craft));
@@ -1026,7 +1060,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   }
   function follow(p) {
     follow.target = p;
-    ALL.forEach(q => q.row.classList.toggle("active", q === p));
+    ALL.concat(CRAFT).forEach(q => q.row.classList.toggle("active", q === p));
     if (!p) controls.target.set(0, 0, 0);
     flyTo(fitDistance(state.blendTarget));
   }
@@ -1317,6 +1351,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
         p.bar.style.width = (lon * 100).toFixed(1) + "%";
         p.count.textContent = (laps < 0 ? "−" : "") + Math.abs(laps).toFixed(2);
       });
+      if (state.craft) CRAFT.forEach(c => {
+        const r = Math.hypot(c.au[0], c.au[1], c.au[2]);
+        c.stats.textContent = state.t < c.t0 ? "not launched" : state.t > c.t1 ? c.endNote : `${r.toFixed(r < 10 ? 2 : 1)} AU from Sun`;
+      });
     }
     requestAnimationFrame(frame);
   }
@@ -1325,4 +1363,3 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   requestAnimationFrame(frame);
 })();
 </script>
-</body></html>
