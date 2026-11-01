@@ -41,3 +41,4 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 33 | 2026-11-01 21:25 | [orrery-v33-2026-11-01-2125-live-distances.html](orrery-v33-2026-11-01-2125-live-distances.html) | Almanac distances update live as bodies move along their orbits |
 | 34 | 2026-11-01 21:40 | [orrery-v34-2026-11-01-2140-orbit-axes.html](orrery-v34-2026-11-01-2140-orbit-axes.html) | Axes button also shows the major and minor axes of each planetary orbit |
 | 35 | 2026-11-01 21:45 | [orrery-v35-2026-11-01-2145-dashed-orbit-axes.html](orrery-v35-2026-11-01-2145-dashed-orbit-axes.html) | Orbit axes drawn straight, dashed for major and dotted for minor |
+| 36 | 2026-11-01 21:50 | [orrery-v36-2026-11-01-2150-semi-major-axis.html](orrery-v36-2026-11-01-2150-semi-major-axis.html) | Orbit axes reduced to the semi-major axis, from the centre through the Sun to perihelion |

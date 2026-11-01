@@ -158,7 +158,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Axes shows each body's spin axis, with the brighter end at its north pole, and the axes of each orbit: the major axis (dashes) runs from perihelion through the Sun to aphelion, and the minor axis (dots) crosses it at the orbit's centre.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Nearby stars: RECONS and Gaia distances via Wikipedia. Spacecraft: NASA JPL Horizons. ISS: NORAD elements, SGP4 via satellite.js.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Axes shows each body's spin axis, with the brighter end at its north pole, and each orbit's semi-major axis, dashed from the orbit's centre through the Sun to perihelion.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Nearby stars: RECONS and Gaia distances via Wikipedia. Spacecraft: NASA JPL Horizons. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -192,7 +192,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="craftBtn" type="button" aria-pressed="false" title="Show or hide the paths of Voyager, Pioneer, New Horizons, Cassini, Juno and Parker Solar Probe">Spacecraft</button>
     <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
-    <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide rotation axes (bright end = north pole) and the major and minor axes of each orbit">Axes</button>
+    <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide rotation axes (bright end = north pole) and the semi-major axis of each orbit">Axes</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true" title="Show or hide the almanac panel">Almanac</button>
   </div>
 </div>
@@ -550,10 +550,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     }
   }
   ORBITERS.forEach(p => sampleOrbit(p, 0));
-  // Orbit axes: the major axis (long dashes) runs from perihelion through the Sun to aphelion; the minor axis (dots)
-  // crosses it at the ellipse's centre. Each is drawn straight between its end points on the orbit as drawn.
+  // Semi-major axis: a dashed line from the orbit's centre, through the Sun, out to perihelion.
+  // Drawn straight between its end points as mapped, so it stays straight in the compressed scale.
   ORBITERS.forEach(p => {
-    const b = p.a * Math.sqrt(1 - p.e * p.e), cx = -p.a * p.e;
     const ends = (x0, y0, x1, y1) => [...rotate(p, x0, y0, 0, [0, 0, 0]), ...rotate(p, x1, y1, 0, [0, 0, 0])];
     const line = au => {
       const g = new THREE.BufferGeometry();
@@ -562,15 +561,14 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       l.au = au;
       return l;
     };
-    p.majorAxis = line(ends(p.a * (1 - p.e), 0, -p.a * (1 + p.e), 0));
-    p.minorAxis = line(ends(cx, -b, cx, b));
+    p.majorAxis = line(ends(-p.a * p.e, 0, p.a * (1 - p.e), 0));
     p.orbitAxes = new THREE.Group();
-    p.orbitAxes.add(p.majorAxis, p.minorAxis);
+    p.orbitAxes.add(p.majorAxis);
     p.orbitAxes.visible = false;
     scene.add(p.orbitAxes);
   });
   function updateOrbitAxes(p, k, flat) {
-    for (const l of [p.majorAxis, p.minorAxis]) {
+    for (const l of [p.majorAxis]) {
       const arr = l.geometry.attributes.position.array;
       for (let i = 0; i < 6; i += 3) {
         tmp[0] = l.au[i]; tmp[1] = l.au[i + 1]; tmp[2] = l.au[i + 2];
@@ -582,9 +580,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       l.computeLineDistances();
     }
     // dash lengths scale with the orbit, so every orbit shows the same pattern
-    const u = p.majorAxis.geometry.attributes.lineDistance.array[1] / 100;
+    const u = p.majorAxis.geometry.attributes.lineDistance.array[1] / 50;
     Object.assign(p.majorAxis.material, { dashSize: 3 * u, gapSize: 1.6 * u });
-    Object.assign(p.minorAxis.material, { dashSize: 0.5 * u, gapSize: 1.1 * u });
   }
   SATS.forEach(m => sampleOrbit(m, 0));
   // Earth's equatorial basis: local +x (Greenwich at zero spin) and local -z (90° east), in the scene
