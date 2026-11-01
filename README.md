@@ -39,3 +39,4 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 31 | 2026-11-01 21:00 | [orrery-v31-2026-11-01-2100-speed-range.html](orrery-v31-2026-11-01-2100-speed-range.html) | Speed range 0.1 hours/s to 1 year/s |
 | 32 | 2026-11-01 21:15 | [orrery-v32-2026-11-01-2115-craft-almanac.html](orrery-v32-2026-11-01-2115-craft-almanac.html) | Spacecraft in the almanac, with launch dates and a Go to launch button |
 | 33 | 2026-11-01 21:25 | [orrery-v33-2026-11-01-2125-live-distances.html](orrery-v33-2026-11-01-2125-live-distances.html) | Almanac distances update live as bodies move along their orbits |
+| 34 | 2026-11-01 21:40 | [orrery-v34-2026-11-01-2140-orbit-axes.html](orrery-v34-2026-11-01-2140-orbit-axes.html) | Axes button also shows the major and minor axes of each planetary orbit |
