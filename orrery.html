@@ -1,17 +1,17 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body><title>Brass Orrery</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body><title>Orrery</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: full-bleed 3D sky, instrument plate top-left, almanac panel right, brass control rail along the bottom */
+/* Layout: full-bleed 3D sky, instrument plate top-left, almanac panel right, control rail along the bottom */
 :root {
   --sky: #06080f;
   --plate: rgba(14, 18, 30, 0.82);
   --line: rgba(201, 164, 92, 0.28);
   --fg: #e8e2d2;
   --muted: #9a968a;
-  --brass: #c9a45c;
-  --brass-hi: #e9c98a;
+  --accent: #c9a45c;
+  --accent-hi: #e9c98a;
   --font-display: "Marcellus", "Trajan Pro", Georgia, serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -31,13 +31,13 @@ body {
   color: var(--fg); opacity: 0.85; text-shadow: 0 0 4px var(--sky), 0 0 2px var(--sky);
   will-change: transform;
 }
-.label.sun { color: var(--brass-hi); }
+.label.sun { color: var(--accent-hi); }
 .label.pick { pointer-events: auto; cursor: pointer; padding: 4px 6px; margin: -4px -6px; }
-.label.pick:hover { color: var(--brass-hi); opacity: 1; }
+.label.pick:hover { color: var(--accent-hi); opacity: 1; }
 .label.minor { font-size: 10px; color: var(--muted); }
 .label.craft { font-style: italic; }
 .label.star { font-size: 10px; color: var(--muted); opacity: 0.9; }
-.label.const { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); opacity: 0.5; transform-origin: 0 0; }
+.label.const { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); opacity: 0.5; transform-origin: 0 0; }
 
 .plate {
   background: var(--plate); border: 1px solid var(--line); border-radius: 6px;
@@ -52,7 +52,7 @@ body {
 }
 #title h1 {
   margin: 0; font-family: var(--font-display); font-weight: 400;
-  font-size: 22px; letter-spacing: 0.08em; color: var(--brass-hi); text-wrap: balance;
+  font-size: 22px; letter-spacing: 0.08em; color: var(--accent-hi); text-wrap: balance;
 }
 #when { font-family: var(--font-data); font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* monospaced, day padded with a space and three-letter months, so the date and time never shift */
@@ -74,12 +74,12 @@ body {
 }
 #almanac h2 {
   margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 15px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass);
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
 }
 #almanac header span { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
 #rows { display: grid; }
 .group-head {
-  padding: 10px 14px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass);
+  padding: 10px 14px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
 }
 .row {
   display: grid; grid-template-columns: 10px 1fr auto; column-gap: 10px; row-gap: 4px;
@@ -89,17 +89,17 @@ body {
 .row.sub { padding-left: 34px; }
 .row .launch { font-family: var(--font-data); font-size: 11px; color: var(--muted); }
 .row .jump { font: 500 11px var(--font-body); color: var(--fg); background: rgba(232, 226, 210, 0.06); border: 1px solid var(--line); border-radius: 3px; padding: 2px 7px; cursor: pointer; }
-.row .jump:hover { border-color: var(--brass); }
+.row .jump:hover { border-color: var(--accent); }
 .row.sub .dot { width: 7px; height: 7px; justify-self: center; }
 .row:hover { background: rgba(201, 164, 92, 0.08); }
-.row:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
+.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .row.active { background: rgba(201, 164, 92, 0.16); }
 .dot { width: 10px; height: 10px; border-radius: 50%; }
 .name { font-weight: 500; }
 .stats { font-family: var(--font-data); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
 .laps { grid-column: 2 / 4; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
 .bar { height: 3px; background: rgba(232, 226, 210, 0.1); border-radius: 2px; overflow: hidden; }
-.bar i { display: block; height: 100%; width: 0; background: var(--brass); }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); }
 .count { font-family: var(--font-data); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 72px; text-align: right; }
 #almanac footer { padding: 8px 14px 4px; font-size: 11px; color: var(--muted); line-height: 1.45; border-top: 1px solid var(--line); }
 
@@ -117,12 +117,12 @@ button.btn {
   background: rgba(232, 226, 210, 0.06); border: 1px solid var(--line); border-radius: 4px;
   padding: 7px 10px; cursor: pointer; min-height: 32px;
 }
-button.btn:hover { border-color: var(--brass); }
-button.btn:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
-button.btn[aria-pressed="true"] { background: var(--brass); color: var(--sky); border-color: var(--brass); }
+button.btn:hover { border-color: var(--accent); }
+button.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.btn[aria-pressed="true"] { background: var(--accent); color: var(--sky); border-color: var(--accent); }
 button.btn.primary { min-width: 76px; }
-#speedLabel { font-family: var(--font-data); font-size: 12px; min-width: 104px; font-variant-numeric: tabular-nums; color: var(--brass-hi); }
-input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--brass); }
+#speedLabel { font-family: var(--font-data); font-size: 12px; min-width: 104px; font-variant-numeric: tabular-nums; color: var(--accent-hi); }
+input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--accent); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .seg button.btn { border: 0; border-radius: 0; }
 .seg button.btn + button.btn { border-left: 1px solid var(--line); }
