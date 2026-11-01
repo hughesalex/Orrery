@@ -759,8 +759,11 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     mg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(3), 3));
     cr.marker = new THREE.Points(mg, new THREE.PointsMaterial({ color: c.color, size: 6, sizeAttenuation: false, map: dotTex, transparent: true, depthWrite: false }));
     cr.marker.frustumCulled = false; cr.marker.visible = false; scene.add(cr.marker);
-    cr.el = makeLabel(c.name, "minor craft");
+    cr.el = makeLabel(c.name, "minor craft pick");
     cr.el.style.display = "none";
+    cr.el.addEventListener("click", () => follow(cr));
+    cr.craft = true;
+    cr.mesh = { position: cr.pos, scale: { x: 0 }, visible: false };   // stands in for a body when picked or followed
     return cr;
   });
   function updateCraft(t, k, flat, remap) {
@@ -792,8 +795,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       c.flown.geometry.attributes.position.needsUpdate = true;
       c.marker.geometry.attributes.position.array.set([c.pos.x, c.pos.y, c.pos.z]);
       c.marker.geometry.attributes.position.needsUpdate = true;
-      c.marker.visible = live;
+      c.marker.visible = c.mesh.visible = live;
       c.live = live;
+      if (!live && follow.target === c) follow(null);           // its data has run out
     });
   }
 
@@ -956,8 +960,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
     craftBtn.setAttribute("aria-pressed", String(on));
     CRAFT.forEach(c => {
       c.ahead.visible = on;
-      if (!on) { c.flown.visible = c.marker.visible = false; c.el.style.display = "none"; }
+      if (!on) { c.flown.visible = c.marker.visible = c.mesh.visible = c.live = false; c.el.style.display = "none"; }
     });
+    if (!on && follow.target && follow.target.craft) follow(null);
     CRAFT.stale = true;
   }
   craftBtn.addEventListener("click", () => setCraft(!state.craft));
@@ -1008,6 +1013,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   const bodySize = (p, k) => sizeAt(compSize(p), trueSize(p.R), k);
   function fitDistance(k) {
     if (follow.target && follow.target.iss) return bodySize(EARTH, k) * 3.2;   // frame the ISS against Earth
+    if (follow.target && follow.target.craft) return Math.exp(lerp(Math.log(8), Math.log(1.5), k));
     if (follow.target) return Math.max(bodySize(follow.target, k) * 14, 0.0006);
     if (state.nearStars) return Math.exp(lerp(Math.log(30000), Math.log(3.2e7), k));   // take in the nearby stars
     return lerp(112, 760, k);
@@ -1058,7 +1064,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
   function pickAt(cx, cy) {
     const rect = canvas.getBoundingClientRect(), w = rect.width, h = rect.height;
     const x = cx - rect.left, y = cy - rect.top;
-    const candidates = [{ body: null, mesh: sun }].concat(ALL.filter(p => p.mesh.visible).map(p => ({ body: p, mesh: p.mesh })));
+    const candidates = [{ body: null, mesh: sun }].concat(ALL.concat(CRAFT).filter(p => p.mesh.visible).map(p => ({ body: p, mesh: p.mesh })));
     let best = null;
     candidates.forEach(c => {
       pickV.copy(c.mesh.position).project(camera);
@@ -1069,7 +1075,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--bras
       const d = Math.hypot(sx - x, sy - y);
       if (d > Math.max(rPx, PICK_SLOP)) return;
       // prefer a body whose disc contains the point and is nearest the camera, then the closest marker
-      const score = d <= rPx ? camDist : 1e9 + d;
+      // a spacecraft dot drawn on top of a planet's disc wins
+      const score = c.body && c.body.craft ? -1e9 + d : d <= rPx ? camDist : 1e9 + d;
       if (!best || score < best.score) best = { score, body: c.body };
     });
     return best;
