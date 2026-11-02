@@ -44,3 +44,4 @@ These were rebuilt by replaying the recorded edit history from the first draft. 
 | 36 | 2026-11-01 21:50 | [orrery-v36-2026-11-01-2150-semi-major-axis.html](orrery-v36-2026-11-01-2150-semi-major-axis.html) | Orbit axes reduced to the semi-major axis, from the centre through the Sun to perihelion |
 | 37 | 2026-11-01 21:50 | [orrery-v37-2026-11-01-2150-dotted-major-axis.html](orrery-v37-2026-11-01-2150-dotted-major-axis.html) | Full major axis of each orbit, dotted |
 | 38 | 2026-11-01 22:00 | [orrery-v38-2026-11-01-2200-rename-orrery.html](orrery-v38-2026-11-01-2200-rename-orrery.html) | Renamed from "Brass Orrery" to "Orrery" |
+| 39 | 2026-11-02 19:00 | [orrery-v39-2026-11-02-1900-predicted-craft-paths.html](orrery-v39-2026-11-02-1900-predicted-craft-paths.html) | Spacecraft paths predicted beyond the JPL data: Voyagers, Pioneers and New Horizons to 2100, Parker to 2030 |
