@@ -37,6 +37,7 @@ body {
 .label.minor { font-size: 10px; color: var(--muted); }
 .label.craft { font-style: italic; }
 .label.star { font-size: 10px; color: var(--muted); opacity: 0.9; }
+.label.deep { font-size: 10px; font-style: italic; color: #b9c2dc; opacity: 0.75; }
 .label.const { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); opacity: 0.5; transform-origin: 0 0; }
 
 .plate {
@@ -158,7 +159,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Axes shows each body's spin axis, with the brighter end at its north pole, and each orbit's major axis, dotted from perihelion through the Sun to aphelion.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Nearby stars: RECONS and Gaia distances via Wikipedia. Spacecraft: NASA JPL Horizons; the dashed paths beyond (Voyagers, Pioneers and New Horizons to 2100, Parker to 2030) are predicted from the last known position and velocity, coasting under the Sun&rsquo;s gravity. ISS: NORAD elements, SGP4 via satellite.js.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Axes shows each body's spin axis, with the brighter end at its north pole, and each orbit's major axis, dotted from perihelion through the Sun to aphelion.<br>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Milky Way: an impression of the band built from its galactic coordinates, not a photograph. Nearby stars: RECONS and Gaia distances via Wikipedia. Spacecraft: NASA JPL Horizons; the dashed paths beyond (Voyagers, Pioneers and New Horizons to 2100, Parker to 2030) are predicted from the last known position and velocity, coasting under the Sun&rsquo;s gravity. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -190,6 +191,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     <button class="btn" id="asteroids" type="button" aria-pressed="false" title="Show or hide the asteroid belt, Kuiper belt and Oort cloud">Asteroids</button>
     <button class="btn" id="issBtn" type="button" aria-pressed="false" title="Show or hide the International Space Station">ISS</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
+    <button class="btn" id="milkyWayBtn" type="button" aria-pressed="false" title="Show or hide the Milky Way, nearby galaxies and notable globular clusters">Milky Way</button>
     <button class="btn" id="craftBtn" type="button" aria-pressed="false" title="Show or hide the paths of Voyager, Pioneer, New Horizons, Cassini, Juno and Parker Solar Probe">Spacecraft</button>
     <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
     <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide rotation axes (bright end = north pole) and the major axis of each orbit">Axes</button>
@@ -447,6 +449,104 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     sky.constLines.renderOrder = -1;
     sky.add(sky.constLines);
   }
+
+  // ---------- Milky Way and deep sky ----------
+  // Galactic (l, b) to J2000 RA/Dec, via the standard equatorial-to-galactic rotation matrix
+  const GAL = [[-0.0548755604, -0.8734370902, -0.4838350155], [0.4941094279, -0.4448296300, 0.7469822445], [-0.8676661490, -0.1980763734, 0.4559837762]];
+  function galToRaDec(l, b) {
+    l *= DEG; b *= DEG;
+    const g = [Math.cos(b) * Math.cos(l), Math.cos(b) * Math.sin(l), Math.sin(b)];
+    const e = [0, 1, 2].map(i => GAL[0][i] * g[0] + GAL[1][i] * g[1] + GAL[2][i] * g[2]);
+    return [((Math.atan2(e[1], e[0]) / DEG) + 360) % 360, Math.asin(e[2]) / DEG];
+  }
+  const deepSky = new THREE.Group();
+  deepSky.visible = false;
+  sky.add(deepSky);
+  {
+    // The Milky Way band: thousands of soft, faint blobs scattered about the galactic plane. Brighter and thicker
+    // towards the centre in Sagittarius, fading towards the anticentre, with the Great Rift and the Coalsack darkening it.
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+    const pos = [], col = [], size = [];
+    const d = new THREE.Vector3();
+    const add = (l, b, bright, px, warm) => {
+      const [ra, dec] = galToRaDec(l, b);
+      skyDir(ra, dec, d).multiplyScalar(SKY_R * 0.995);
+      pos.push(d.x, d.y, d.z);
+      col.push(bright * (0.85 + 0.15 * warm), bright * (0.86 + 0.06 * warm), bright * (0.95 - 0.2 * warm));
+      size.push(px);
+    };
+    for (let n = 0; n < 30000; n++) {
+      const l = rnd() * 360, lc = ((l + 180) % 360) - 180;            // longitude from the centre, -180..180
+      const centre = Math.exp(-(lc * lc) / (2 * 55 * 55));             // the band brightens towards Sagittarius
+      const width = 3.5 + 4 * centre;
+      const b = gauss() * width;
+      let bright = 0.011 + 0.011 * centre;
+      // the Great Rift: dust along the plane from Cygnus (l ≈ 80°) to Sagittarius (l ≈ 0°), just north of the midline
+      if (lc > -5 && lc < 85 && b > -2.5 && b < 4) bright *= 0.35 + 0.65 * Math.min(1, Math.abs(b - 0.8) / 3);
+      // the Coalsack, beside the Southern Cross
+      if (Math.hypot(lc + 59, b + 0.5) < 3.5) bright *= 0.3;
+      add(l, b, bright, 30 + rnd() * 40, centre);
+    }
+    for (let n = 0; n < 3000; n++) {                                   // the central bulge
+      const l = gauss() * 9, b = gauss() * 6;
+      add(l, b, 0.008, 30 + rnd() * 36, 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(col), 3));
+    g.setAttribute("size", new THREE.BufferAttribute(new Float32Array(size), 1));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { scale: { value: Math.min(window.devicePixelRatio || 1, 2) } },
+      vertexShader: `attribute float size; varying vec3 vColor; uniform float scale;
+        void main() { vColor = color; gl_PointSize = size * scale; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `varying vec3 vColor;
+        void main() { float r = length(gl_PointCoord - 0.5) * 2.0; float a = exp(-r * r * 3.0) * (1.0 - smoothstep(0.8, 1.0, r)); gl_FragColor = vec4(vColor * a, 1.0); }`,
+      vertexColors: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+    });
+    const band = new THREE.Points(g, mat);
+    band.frustumCulled = false;
+    band.renderOrder = -3;
+    deepSky.add(band);
+  }
+  // Nearby galaxies and notable globular clusters: [name, RA°, Dec°, major axis°, minor axis°, position angle°, distance]
+  const DEEP_SKY = [
+    ["Large Magellanic Cloud", 80.894, -69.756, 10.8, 9.2, 170, "160,000 ly", "galaxy"],
+    ["Small Magellanic Cloud", 13.187, -72.829, 5.3, 3.1, 45, "200,000 ly", "galaxy"],
+    ["Andromeda Galaxy", 10.685, 41.269, 3.2, 1.0, 35, "2.5 million ly", "galaxy"],
+    ["Triangulum Galaxy", 23.462, 30.660, 1.2, 0.7, 23, "2.7 million ly", "galaxy"],
+    ["Galactic centre", 266.417, -29.008, 0, 0, 0, "26,000 ly", "centre"],
+    ["Omega Centauri", 201.697, -47.479, 0.6, 0.6, 0, "17,000 ly", "cluster"],
+    ["47 Tucanae", 6.024, -72.081, 0.5, 0.5, 0, "15,000 ly", "cluster"],
+    ["M13 (Hercules)", 250.423, 36.461, 0.33, 0.33, 0, "22,000 ly", "cluster"],
+    ["M22", 279.100, -23.905, 0.5, 0.5, 0, "10,600 ly", "cluster"],
+    ["M4", 245.897, -26.526, 0.45, 0.45, 0, "7,200 ly", "cluster"],
+    ["M5", 229.638, 2.081, 0.38, 0.38, 0, "24,500 ly", "cluster"],
+    ["M3", 205.548, 28.377, 0.3, 0.3, 0, "34,000 ly", "cluster"],
+    ["M15", 322.493, 12.167, 0.3, 0.3, 0, "34,000 ly", "cluster"],
+    ["NGC 6752", 287.717, -59.985, 0.33, 0.33, 0, "13,000 ly", "cluster"],
+  ];
+  const deepTex = radialTexture([[0, "rgba(255,255,255,1)"], [0.35, "rgba(255,255,255,0.45)"], [1, "rgba(255,255,255,0)"]]);
+  DEEP_SKY.forEach(o => {
+    const [, ra, dec, maj, min, pa, , kind] = o;
+    o.dir = skyDir(ra, dec, new THREE.Vector3());
+    if (kind === "centre") return;
+    // a soft ellipse lying flat on the sky, its long axis turned to the position angle (north through east)
+    const north = skyDir(ra, dec + 0.01, new THREE.Vector3()).sub(o.dir).normalize();
+    const east = new THREE.Vector3().crossVectors(north, o.dir).normalize();
+    const p = pa * DEG, along = north.clone().multiplyScalar(Math.cos(p)).addScaledVector(east, Math.sin(p));
+    const across = new THREE.Vector3().crossVectors(along, o.dir).normalize();
+    const R = SKY_R * 0.99, s = Math.max(maj, 0.5) * 1.4 * DEG * R, t = Math.max(min, 0.5) * 1.4 * DEG * R;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+      map: deepTex, color: kind === "galaxy" ? 0xcfd6ff : 0xffe7c2, transparent: true, opacity: kind === "galaxy" ? 0.55 : 0.8,
+      blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+    m.matrixAutoUpdate = false;
+    m.matrix.makeBasis(along.multiplyScalar(s), across.multiplyScalar(t), o.dir.clone()).setPosition(o.dir.clone().multiplyScalar(R));
+    m.frustumCulled = false;
+    m.renderOrder = -2;
+    deepSky.add(m);
+  });
 
   function radialTexture(stops) {
     const c = document.createElement("canvas"); c.width = c.height = 128;
@@ -765,6 +865,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     st.el.title = `${st.sp}${st.n > 1 ? `, ${st.n} stars` : ""}`;
     st.el.style.display = "none";
   });
+  DEEP_SKY.forEach(o => { o.el = makeLabel(`${o[0]} · ${o[6]}`, "deep"); o.el.style.display = "none"; });
   const constLabels = CONST_NAMES.map(([name, ra, dec]) => ({ el: makeLabel(name, "const"), dir: skyDir(ra, dec, new THREE.Vector3()) }));
   ALL.forEach(p => { p.label = makeLabel(p.name, p.dwarf || p.moon || p.sat || p.iss ? "minor" : ""); });
 
@@ -1034,6 +1135,17 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
   }
   constBtn.addEventListener("click", () => setConstellations(!state.constellations));
   setConstellations(false);   // off by default
+
+  // Milky Way toggle: the band of the galaxy, plus nearby galaxies and globular clusters, labelled with distances
+  const milkyWayBtn = document.getElementById("milkyWayBtn");
+  function setMilkyWay(on) {
+    state.milkyWay = on;
+    milkyWayBtn.setAttribute("aria-pressed", String(on));
+    deepSky.visible = on;
+    if (!on) DEEP_SKY.forEach(o => { o.el.style.display = "none"; });
+  }
+  milkyWayBtn.addEventListener("click", () => setMilkyWay(!state.milkyWay));
+  setMilkyWay(false);         // off by default
 
   // spacecraft toggle
   const craftBtn = document.getElementById("craftBtn");
@@ -1373,6 +1485,12 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       if (v3.z > 1 || v3.z < -1 || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) { c.el.style.display = "none"; return; }
       c.el.style.display = "";
       c.el.style.transform = `translate(${Math.round((v3.x * 0.5 + 0.5) * w)}px, ${Math.round((-v3.y * 0.5 + 0.5) * h)}px) translate(-50%, -50%)`;
+    });
+    if (state.milkyWay) DEEP_SKY.forEach(o => {
+      v3.copy(o.dir).multiplyScalar(SKY_R).add(camera.position).project(camera);
+      if (v3.z > 1 || v3.z < -1 || Math.abs(v3.x) > 1.1 || Math.abs(v3.y) > 1.1) { o.el.style.display = "none"; return; }
+      o.el.style.display = "";
+      o.el.style.transform = `translate(${Math.round((v3.x * 0.5 + 0.5) * w) + 9}px, ${Math.round((-v3.y * 0.5 + 0.5) * h)}px) translate(0, -50%)`;
     });
     // hide the Moon's label when it would sit on top of Earth's
     scr(EARTH.mesh.position, earthAt); scr(MOON.mesh.position, at);
