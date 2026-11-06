@@ -1331,11 +1331,12 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     (sel.comet && q.craft && (VISITS[q.name] || []).includes(sel.name));
   function highlightPaths() {
     const t = follow.target, sel = t && (t.orbit || t.craft) ? t : null;
+    // a highlighted path is never fainter than 0.6, so a quiet comet orbit (faint while the comet is far out) still stands out
     const set = (line, mine, cap) => {
       if (!line) return;
       const m = line.material;
       if (m.userData.base == null || m.userData.live) m.userData.base = m.opacity;
-      m.opacity = !sel ? m.userData.base : mine ? Math.min(cap, m.userData.base * PATH_BOOST) : m.userData.base * PATH_DIM;
+      m.opacity = !sel ? m.userData.base : mine ? Math.min(cap, Math.max(0.6, m.userData.base * PATH_BOOST)) : m.userData.base * PATH_DIM;
     };
     ALL.forEach(p => {
       const mine = sel && related(sel, p);
