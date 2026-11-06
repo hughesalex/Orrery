@@ -964,6 +964,23 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       return l;
     };
     const cr = { ...c, n, t0: c.pts[0], t1: c.pts[(n - 1) * 4], ahead: mk(0.16), flown: mk(0.7), pos: new THREE.Vector3(), au: [0, 0, 0] };
+    // A craft that loops round the Sun several times (Deep Impact, Rosetta, Parker...) would draw a tangle of orbits.
+    // Its path is faded with time away from the current date, so only the loop it is on now stands out.
+    let swept = 0;
+    for (let i = 1; i < n; i++) {
+      let d = Math.atan2(c.pts[i * 4 + 2], c.pts[i * 4 + 1]) - Math.atan2(c.pts[i * 4 - 2], c.pts[i * 4 - 3]);
+      d -= Math.round(d / (2 * Math.PI)) * 2 * Math.PI;
+      swept += d;
+    }
+    const revs = Math.abs(swept) / (2 * Math.PI);
+    if (revs >= 1.5) {
+      cr.fadeTau = 0.45 * (cr.t1 - cr.t0) / revs;    // about half an orbit either side stays bright
+      [cr.ahead, cr.flown].forEach(l => {
+        l.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array((n + 1) * 3), 3));
+        l.material.vertexColors = true;
+      });
+      cr.fadeT = NaN;
+    }
     // after the last JPL sample the path is predicted (coasting under the Sun's gravity): drawn dashed while still ahead
     cr.ip = c.pred == null ? n - 1 : c.pts.findIndex((v, i) => i % 4 === 0 && v >= c.pred) / 4;
     if (cr.ip < n - 1) {
@@ -1020,6 +1037,17 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       b[(lo + 1) * 3] = c.pos.x; b[(lo + 1) * 3 + 1] = c.pos.y; b[(lo + 1) * 3 + 2] = c.pos.z;
       c.flown.geometry.setDrawRange(0, lo + 2);
       c.flown.geometry.attributes.position.needsUpdate = true;
+      if (c.fadeTau && live && c.fadeT !== t) {
+        c.fadeT = t;
+        const ca = c.ahead.geometry.attributes.color, cf = c.flown.geometry.attributes.color;
+        for (let i = 0; i < c.n; i++) {
+          const x = (c.pts[i * 4] - t) / c.fadeTau, w = 0.07 + 0.93 * Math.exp(-x * x);
+          ca.array[i * 3] = ca.array[i * 3 + 1] = ca.array[i * 3 + 2] = w;
+        }
+        cf.array.set(ca.array.subarray(0, (lo + 1) * 3));
+        cf.array[(lo + 1) * 3] = cf.array[(lo + 1) * 3 + 1] = cf.array[(lo + 1) * 3 + 2] = 1;
+        ca.needsUpdate = cf.needsUpdate = true;
+      }
       c.marker.geometry.attributes.position.array.set([c.pos.x, c.pos.y, c.pos.z]);
       c.marker.geometry.attributes.position.needsUpdate = true;
       c.marker.visible = c.mesh.visible = live;
