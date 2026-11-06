@@ -1113,7 +1113,13 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       <span class="name">${c.name}</span>
       <span class="stats">—</span>
       <span class="laps"><span class="launch">Launched ${launch}</span><button class="jump" type="button" title="Set the clock to ${c.name}'s launch and follow it">Go to launch</button></span>`;
-    const act = () => (c.live ? follow(follow.target === c ? null : c) : jumpToLaunch(c));
+    // Clicking the row follows the craft while it is flying. When it isn't, the row only points at "Go to launch":
+    // changing the date is left to that button alone.
+    const nudge = () => {
+      const j = r.querySelector(".jump");
+      j.animate([{ boxShadow: "0 0 0 2px var(--accent-hi)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 700 });
+    };
+    const act = () => (c.live ? follow(follow.target === c ? null : c) : nudge());
     r.addEventListener("click", e => { if (!e.target.closest(".jump")) act(); });
     r.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target === r) { e.preventDefault(); act(); } });
     r.querySelector(".jump").addEventListener("click", () => jumpToLaunch(c));
