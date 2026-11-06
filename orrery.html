@@ -1320,6 +1320,15 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
   // every path keeps its normal brightness. Each material's normal opacity is remembered the first time it is seen,
   // except comet orbits, whose normal opacity is worked out afresh each frame from the comet's activity.
   const PATH_DIM = 0.3, PATH_BOOST = 1.7;
+  // A spacecraft and the comets it visited count as one selection: picking either highlights both.
+  const VISITS = {
+    "Deep Space 1": ["Borrelly"], "Stardust": ["Wild 2", "Tempel 1"], "Deep Impact": ["Tempel 1", "Hartley 2"],
+    "Rosetta & Philae": ["67P"], "Giotto": ["Halley", "Grigg-Skjellerup"], "Vega 1": ["Halley"], "Vega 2": ["Halley"],
+    "Suisei": ["Halley"], "Sakigake": ["Halley"], "ICE": ["Giacobini-Zinner", "Halley"],
+  };
+  const related = (sel, q) => q === sel ||
+    (sel.craft && q.comet && (VISITS[sel.name] || []).includes(q.name)) ||
+    (sel.comet && q.craft && (VISITS[q.name] || []).includes(sel.name));
   function highlightPaths() {
     const t = follow.target, sel = t && (t.orbit || t.craft) ? t : null;
     const set = (line, mine, cap) => {
@@ -1329,10 +1338,11 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       m.opacity = !sel ? m.userData.base : mine ? Math.min(cap, m.userData.base * PATH_BOOST) : m.userData.base * PATH_DIM;
     };
     ALL.forEach(p => {
-      if (p.orbit) { if (p.comet) p.orbit.material.userData.live = true; set(p.orbit, p === sel, 0.8); }
-      if (p.majorAxis) set(p.majorAxis, p === sel, 0.8);
+      const mine = sel && related(sel, p);
+      if (p.orbit) { if (p.comet) p.orbit.material.userData.live = true; set(p.orbit, mine, 0.8); }
+      if (p.majorAxis) set(p.majorAxis, mine, 0.8);
     });
-    CRAFT.forEach(c => { set(c.flown, c === sel, 0.95); set(c.ahead, c === sel, 0.4); set(c.predLine, c === sel, 0.6); });
+    CRAFT.forEach(c => { const mine = sel && related(sel, c); set(c.flown, mine, 0.95); set(c.ahead, mine, 0.4); set(c.predLine, mine, 0.6); });
   }
 
   // The control rail and almanac cover part of the canvas. Shift the projection (not the camera) so the point the
