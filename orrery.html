@@ -193,7 +193,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     <button class="btn" id="issBtn" type="button" aria-pressed="false" title="Show or hide the International Space Station">ISS</button>
     <button class="btn" id="constellations" type="button" aria-pressed="false" title="Show or hide constellation lines and names">Constellations</button>
     <button class="btn" id="milkyWayBtn" type="button" aria-pressed="false" title="Show or hide the Milky Way, nearby galaxies and notable globular clusters">Milky Way</button>
-    <button class="btn" id="craftBtn" type="button" aria-pressed="false" title="Show or hide the paths of the Voyagers, Pioneers, New Horizons, Cassini, Juno, Parker Solar Probe and the comet missions">Spacecraft</button>
+    <button class="btn" id="craftBtn" type="button" aria-pressed="false" title="Show the spacecraft flying at the current date, with their paths (go back in time, or use Go to launch in the almanac, to see earlier missions)">Spacecraft</button>
     <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
     <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide rotation axes (bright end = north pole) and the major axis of each orbit">Axes</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true" title="Show or hide the almanac panel">Almanac</button>
@@ -986,7 +986,9 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
   function updateCraft(t, k, flat, remap) {
     CRAFT.forEach(c => {
       const live = t >= c.t0 && t <= c.t1;
-      c.flown.visible = t >= c.t0;
+      // a path is drawn only while its mission is flying, so the view shows what was out there at the date
+      c.ahead.visible = c.flown.visible = live;
+      if (c.predLine) c.predLine.visible = live;
       if (remap) {       // full path in scene units
         const a = c.ahead.geometry.attributes.position.array;
         for (let i = 0; i < c.n; i++) {
@@ -1455,6 +1457,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       const r = Math.hypot(c.au[0], c.au[1], c.au[2]);
       const act = c.mesh.visible ? Math.pow(Math.max(0, Math.min(1, (4 - r) / 3.3)), 1.5) : 0;
       c.tail.visible = c.coma.visible = act > 0.002;
+      // keep the view quiet: an orbit is drawn faintly until its comet is near the Sun or being followed
+      c.orbit.material.opacity = follow.target === c ? 0.35 : 0.06 + 0.22 * Math.min(1, act * 2);
       if (!c.tail.visible) return;
       const L = 0.32 * c.tailK * act;               // tail length, AU
       tmp[0] = c.au[0] * (1 + L / r); tmp[1] = c.au[1] * (1 + L / r); tmp[2] = c.au[2] * (1 + L / r);
