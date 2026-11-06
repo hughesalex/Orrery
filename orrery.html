@@ -976,7 +976,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     if (revs >= 1.5) {
       cr.fadeTau = 0.45 * (cr.t1 - cr.t0) / revs;    // about half an orbit either side stays bright
       [cr.ahead, cr.flown].forEach(l => {
-        l.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array((n + 1) * 3), 3));
+        // RGBA vertex colours: white, with the fade in alpha, so faded loops vanish rather than drawing dark over the Sun's glow
+        l.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array((n + 1) * 4).fill(1), 4));
         l.material.vertexColors = true;
       });
       cr.fadeT = NaN;
@@ -988,6 +989,10 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       g.setAttribute("position", new THREE.BufferAttribute(new Float32Array((n - cr.ip) * 3), 3));
       cr.predLine = new THREE.Line(g, new THREE.LineDashedMaterial({ color: c.color, transparent: true, opacity: 0.3, depthWrite: false }));
       cr.predLine.frustumCulled = false; cr.predLine.visible = false; scene.add(cr.predLine);
+    }
+    if (cr.fadeTau && cr.predLine) {     // the predicted stretch fades too (Parker's final orbit repeats until 2030)
+      cr.predLine.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array((n - cr.ip) * 4).fill(1), 4));
+      cr.predLine.material.vertexColors = true;
     }
     const mg = new THREE.BufferGeometry();
     mg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(3), 3));
@@ -1041,12 +1046,17 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
         c.fadeT = t;
         const ca = c.ahead.geometry.attributes.color, cf = c.flown.geometry.attributes.color;
         for (let i = 0; i < c.n; i++) {
-          const x = (c.pts[i * 4] - t) / c.fadeTau, w = 0.07 + 0.93 * Math.exp(-x * x);
-          ca.array[i * 3] = ca.array[i * 3 + 1] = ca.array[i * 3 + 2] = w;
+          const x = (c.pts[i * 4] - t) / c.fadeTau;
+          ca.array[i * 4 + 3] = 0.04 + 0.96 * Math.exp(-x * x);
         }
-        cf.array.set(ca.array.subarray(0, (lo + 1) * 3));
-        cf.array[(lo + 1) * 3] = cf.array[(lo + 1) * 3 + 1] = cf.array[(lo + 1) * 3 + 2] = 1;
+        cf.array.set(ca.array.subarray(0, (lo + 1) * 4));
+        cf.array[(lo + 1) * 4 + 3] = 1;
         ca.needsUpdate = cf.needsUpdate = true;
+        if (c.predLine) {
+          const cp = c.predLine.geometry.attributes.color;
+          cp.array.set(ca.array.subarray(c.ip * 4, c.n * 4));
+          cp.needsUpdate = true;
+        }
       }
       c.marker.geometry.attributes.position.array.set([c.pos.x, c.pos.y, c.pos.z]);
       c.marker.geometry.attributes.position.needsUpdate = true;
