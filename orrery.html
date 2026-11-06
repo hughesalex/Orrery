@@ -1316,6 +1316,24 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     flyTo(fitDistance(state.blendTarget));
   }
   follow.target = null;
+  // Selecting a body with a path brightens its path and dims all the others; with nothing selected (or the Sun)
+  // every path keeps its normal brightness. Each material's normal opacity is remembered the first time it is seen,
+  // except comet orbits, whose normal opacity is worked out afresh each frame from the comet's activity.
+  const PATH_DIM = 0.3, PATH_BOOST = 1.7;
+  function highlightPaths() {
+    const t = follow.target, sel = t && (t.orbit || t.craft) ? t : null;
+    const set = (line, mine, cap) => {
+      if (!line) return;
+      const m = line.material;
+      if (m.userData.base == null || m.userData.live) m.userData.base = m.opacity;
+      m.opacity = !sel ? m.userData.base : mine ? Math.min(cap, m.userData.base * PATH_BOOST) : m.userData.base * PATH_DIM;
+    };
+    ALL.forEach(p => {
+      if (p.orbit) { if (p.comet) p.orbit.material.userData.live = true; set(p.orbit, p === sel, 0.8); }
+      if (p.majorAxis) set(p.majorAxis, p === sel, 0.8);
+    });
+    CRAFT.forEach(c => { set(c.flown, c === sel, 0.95); set(c.ahead, c === sel, 0.4); set(c.predLine, c === sel, 0.6); });
+  }
 
   // The control rail and almanac cover part of the canvas. Shift the projection (not the camera) so the point the
   // camera orbits, i.e. the followed body or the Sun, sits in the middle of the area they leave clear.
@@ -1568,6 +1586,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       : Math.exp(lerp(Math.log(8000), Math.log(1.5e6), eb));                                        // far enough out to see the whole Oort cloud
     controls.update();
     sky.position.copy(camera.position);   // stars are effectively at infinity
+    highlightPaths();
     renderer.render(scene, camera);
 
     // labels
