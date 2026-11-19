@@ -9,3 +9,7 @@ You can speed time up, pause or reverse it, view from above or in 3D, and click 
 <a href="https://hughesalex.github.io/orrery/orrery.html"><img src="docs/screenshot.png" alt="Screenshot of the orrery showing the planets' orbits around the Sun, with the almanac and time controls" width="760"></a>
 
 It is a single HTML file with no build step and works offline. Everything it needs, including three.js, is embedded in the file, so you can download `orrery.html` and open it straight from disk in a browser, with no internet connection.
+
+## Orbit simulator
+
+A companion sandbox for learning how orbits around Earth work: plan burns with manoeuvre nodes, fly by hand, and watch apoapsis, periapsis and inclination change. **[▶ Open the orbit simulator](https://hughesalex.github.io/orrery/orbit-simulator/orbit-simulator.html)**, or see [`orbit-simulator/`](orbit-simulator/) for how it is built.
