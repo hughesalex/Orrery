@@ -254,7 +254,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
 <aside id="almanac" class="plate" aria-label="Planet almanac">
   <header><h2>Almanac</h2><span>Orbits completed</span></header>
   <div id="rows"></div>
-  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Axes shows each body's spin axis, with the brighter end at its north pole, and each orbit's major axis, dotted from perihelion through the Sun to aphelion.<br><span id="cometNote">Comet tails point away from the Sun and grow as a comet nears it; their length is a sketch, not a measurement. Comets drift as the planets tug on them, so around each spacecraft visit the comet follows its orbit as it was then.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Milky Way: an impression of the band built from its galactic coordinates, not a photograph. Nearby stars: RECONS and Gaia distances via Wikipedia. Spacecraft: NASA JPL Horizons; the dashed paths beyond (Voyagers, Pioneers and New Horizons to 2100, Parker to 2030) are predicted from the last known position and velocity, coasting under the Sun&rsquo;s gravity. Giotto, Vega 1 and 2, Suisei, Sakigake and ICE are not in Horizons, so their paths (dashed) are rebuilt as coasting arcs between their real launch, flyby and encounter dates. Comets: JPL Small-Body Database and Horizons. ISS: NORAD elements, SGP4 via satellite.js.</footer>
+  <footer><span id="beltNote">The asteroid belt is drawn as 2,500 sample asteroids between 2.1 and 3.3 AU, with the Kirkwood gaps that Jupiter clears. The Kuiper belt (blue, 30 to 50 AU and beyond) shows its classical disc, the plutinos and the scattered disc. The Oort cloud, 2,000 to 100,000 AU out, has never been seen directly, so its shell is illustrative: zoom right out to find it.<br></span>Axes shows each body's spin axis, with the brighter end at its north pole, a red line out through its 0° latitude, 0° longitude point that turns with the surface (so the true spin shows even where cloud bands drift), and each orbit's major axis, dotted from perihelion through the Sun to aphelion.<br><span id="cometNote">Comet tails point away from the Sun and grow as a comet nears it; their length is a sketch, not a measurement. Comets drift as the planets tug on them, so around each spacecraft visit the comet follows its orbit as it was then.<br></span>Tap or click any body, its label or its row here to centre on it and follow it. Tap the Sun to recentre. Drag to rotate, scroll or pinch to zoom.<br>Planet maps: <a href="https://www.solarsystemscope.com/textures/" style="color:inherit">Solar System Scope</a>, CC BY 4.0. Stars: Hipparcos via d3-celestial. Milky Way: an impression of the band built from its galactic coordinates, not a photograph. Nearby stars: RECONS and Gaia distances via Wikipedia. Spacecraft: NASA JPL Horizons; the dashed paths beyond (Voyagers, Pioneers and New Horizons to 2100, Parker to 2030) are predicted from the last known position and velocity, coasting under the Sun&rsquo;s gravity. Giotto, Vega 1 and 2, Suisei, Sakigake and ICE are not in Horizons, so their paths (dashed) are rebuilt as coasting arcs between their real launch, flyby and encounter dates. Comets: JPL Small-Body Database and Horizons. ISS: NORAD elements, SGP4 via satellite.js.</footer>
 </aside>
 
 <div id="controls" class="plate" role="toolbar" aria-label="Simulation controls">
@@ -290,7 +290,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     <button class="btn" id="milkyWayBtn" type="button" aria-pressed="false" title="Show or hide the Milky Way, nearby galaxies and notable globular clusters">Milky Way</button>
     <button class="btn" id="craftBtn" type="button" aria-pressed="false" title="Show the spacecraft flying at the current date, with their paths (go back in time, or use Go to launch in the almanac, to see earlier missions)">Spacecraft</button>
     <button class="btn" id="nearBtn" type="button" aria-pressed="false" title="Show the 50 nearest star systems at their real directions and distances">Nearby stars</button>
-    <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide rotation axes (bright end = north pole) and the major axis of each orbit">Axes</button>
+    <button class="btn" id="axesBtn" type="button" aria-pressed="false" title="Show or hide rotation axes (bright end = north pole), a red line through each body's 0° latitude, 0° longitude point that turns with it, and the major axis of each orbit">Axes</button>
     <button class="btn" id="toggleAlmanac" type="button" aria-pressed="true" title="Show or hide the almanac panel">Almanac</button>
   </div>
 </div>
@@ -1776,12 +1776,24 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
     ag.setAttribute("color", new THREE.BufferAttribute(new Float32Array([0.91, 0.79, 0.54, 0.91, 0.79, 0.54, 0.45, 0.48, 0.55, 0.45, 0.48, 0.55]), 3));
     return new THREE.LineSegments(ag, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 }));
   }
+  // prime meridian: a line from the centre out through the 0° latitude, 0° longitude point (local +X, the centre of
+  // each equirectangular texture), poking out 1.6 radii. It is attached to the spinning sphere, so it turns with the
+  // surface and shows the true rotation even where cloud bands (Jupiter, Saturn) seem to drift.
+  function makeMeridian() {
+    const mg = new THREE.BufferGeometry();
+    mg.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0, 0, 0, 1.6, 0, 0]), 3));
+    return new THREE.LineSegments(mg, new THREE.LineBasicMaterial({ color: 0xf07a5a, transparent: true, opacity: 0.9 }));
+  }
   // the Sun's axis reaches further out and is drawn after the glow so it shows against it
   const sunAxis = makeAxis();
   sunAxis.scale.setScalar(1.5);
   sunAxis.renderOrder = 10;
   sunAxis.geometry.attributes.color.array.set([1, 0.93, 0.78, 1, 0.93, 0.78, 0.7, 0.75, 0.85, 0.7, 0.75, 0.85]);
   sun.add(sunAxis);
+  const sunMeridian = makeMeridian();
+  sunMeridian.scale.setScalar(1.5);
+  sunMeridian.renderOrder = 10;
+  sun.add(sunMeridian);
 
   // Bodies
   const ORBIT_N = 256;
@@ -1809,7 +1821,7 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
       p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
       p.spinHours = p.P * 24 * (retro ? -1 : 1);
     }
-    if (!p.noBody && !p.comet) p.mesh.add(p.axis = makeAxis());
+    if (!p.noBody && !p.comet) { p.mesh.add(p.axis = makeAxis()); p.body.add(p.meridian = makeMeridian()); }
     if (p.name === "Earth") {
       p.clouds = new THREE.Mesh(new THREE.SphereGeometry(1.012, 64, 32),
         new THREE.MeshLambertMaterial({ color: 0xffffff, alphaMap: loadTex(TEXTURES.Clouds), transparent: true, depthWrite: false }));
@@ -2469,8 +2481,8 @@ input[type="range"] { flex: 1 1 120px; min-width: 80px; accent-color: var(--acce
   function setAxes(on) {
     state.axes = on;
     axesBtn.setAttribute("aria-pressed", String(on));
-    ALL.forEach(p => { if (p.axis) p.axis.visible = on; });
-    sunAxis.visible = on;
+    ALL.forEach(p => { if (p.axis) p.axis.visible = p.meridian.visible = on; });
+    sunAxis.visible = sunMeridian.visible = on;
     ORBITERS.forEach(p => { p.orbitAxes.visible = on && shown(p); });
   }
   axesBtn.addEventListener("click", () => setAxes(!state.axes));
